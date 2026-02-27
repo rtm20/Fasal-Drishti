@@ -12,7 +12,7 @@ const techStack = [
   },
   {
     category: 'AWS Services',
-    items: ['Bedrock (Claude 3 Sonnet)', 'S3', 'DynamoDB', 'Lambda', 'API Gateway', 'Translate', 'Polly', 'CloudWatch'],
+    items: ['Bedrock (Claude 3.5 Sonnet v2)', 'S3', 'DynamoDB', 'Lambda', 'API Gateway', 'Translate', 'Polly', 'CloudWatch'],
   },
   {
     category: 'Integration',
@@ -60,7 +60,7 @@ export default function About() {
           <div className="p-6 rounded-2xl bg-green-900/10 border border-green-900/20">
             <h3 className="text-lg font-bold text-green-400 mb-3">🟢 Our Solution</h3>
             <ul className="space-y-2 text-gray-300 text-sm leading-relaxed">
-              <li>• <strong>AI vision analysis</strong> via Amazon Bedrock Claude 3 Sonnet</li>
+              <li>• <strong>AI vision analysis</strong> via Amazon Bedrock Claude 3.5 Sonnet v2</li>
               <li>• Accessible through <strong>WhatsApp</strong> — works on any phone</li>
               <li>• Support for <strong>11 Indian languages</strong> via Amazon Translate</li>
               <li>• Actionable treatments with <strong>dosage, cost & organic options</strong></li>
@@ -152,7 +152,7 @@ export default function About() {
           <h3 className="text-lg font-bold mb-2">AI for Bharat Hackathon 2026</h3>
           <p className="text-gray-400 text-sm mb-4">Track 03: AI for Rural Innovation & Sustainable Systems</p>
           <p className="text-gray-500 text-xs">
-            Built with Amazon Bedrock, Claude 3 Sonnet, S3, DynamoDB, Lambda, Translate, and Polly.
+            Built with Amazon Bedrock, Claude 3.5 Sonnet v2, S3, DynamoDB, Lambda, Translate, and Polly.
           </p>
         </div>
       </div>

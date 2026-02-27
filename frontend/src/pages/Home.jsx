@@ -34,7 +34,7 @@ const features = [
   {
     icon: <FaBrain className="text-3xl text-green-400" />,
     title: 'Powered by AI',
-    desc: 'Amazon Bedrock Claude 3 Sonnet vision model delivers expert-grade analysis from just a photograph.',
+    desc: 'Amazon Bedrock Claude 3.5 Sonnet v2 vision model delivers expert-grade analysis from just a photograph.',
   },
   {
     icon: <MdSpeed className="text-3xl text-green-400" />,
@@ -183,7 +183,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold mb-4">Powered by AWS</h2>
           <p className="text-gray-400 mb-10 max-w-lg mx-auto">Enterprise-grade cloud infrastructure for reliable, scalable AI at the edge.</p>
           <div className="flex flex-wrap justify-center gap-4">
-            {['Amazon Bedrock', 'Claude 3 Sonnet', 'Amazon S3', 'DynamoDB', 'API Gateway', 'Lambda', 'Amazon Translate', 'Amazon Polly', 'CloudWatch'].map(t => (
+            {['Amazon Bedrock', 'Claude 3.5 Sonnet v2', 'Amazon S3', 'DynamoDB', 'API Gateway', 'Lambda', 'Amazon Translate', 'Amazon Polly', 'CloudWatch'].map(t => (
               <span key={t} className="px-5 py-2.5 rounded-xl bg-[#0f0f1a] border border-gray-700/50 text-gray-300 text-sm font-medium">
                 {t}
               </span>

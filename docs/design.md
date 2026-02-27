@@ -33,7 +33,7 @@
 │  │       │            │             │                        │    │
 │  │  ┌────▼────────────▼─────────────▼───────┐               │    │
 │  │  │         AI Service Layer               │               │    │
-│  │  │  • Bedrock Claude 3 Vision Analysis    │               │    │
+│  │  │  • Bedrock Claude 3.5 Sonnet v2 Analysis │               │    │
 │  │  │  • Fallback Analysis (Demo Mode)       │               │    │
 │  │  │  • Disease Database Lookup             │               │    │
 │  │  │  • Translation (AWS Translate)         │               │    │
@@ -62,7 +62,7 @@
    b. Convert to base64 for Bedrock
    c. Call AI Service → analyze_crop_image()
 4. AI Service:
-   a. Try Bedrock Claude 3 Sonnet (vision)
+   a. Try Bedrock Claude 3.5 Sonnet v2 (vision)
    b. If Bedrock fails → fallback_analysis() (random disease for demo)
    c. Parse AI response → extract disease_key, confidence, severity
    d. Look up disease_key in DISEASE_DATABASE
@@ -277,7 +277,7 @@ Frontend → S3 + CloudFront (static hosting)
 Backend → Lambda + API Gateway (serverless)
 Images → S3
 Data → DynamoDB
-AI → Bedrock (Claude 3 Sonnet, ap-south-1)
+AI → Bedrock (Claude 3.5 Sonnet v2, ap-south-1)
 Translation → Amazon Translate
 Monitoring → CloudWatch
 ```

@@ -456,6 +456,12 @@ async def handle_webhook(request: Request):
     return await _handle_meta_webhook(request)
 
 
+@router.post("/twilio")
+async def handle_twilio_shortcut(request: Request):
+    """Alias for /webhook — Twilio-specific endpoint."""
+    return await _handle_twilio_webhook(request)
+
+
 # ============================================================
 # META CLOUD API HANDLER
 # ============================================================

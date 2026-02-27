@@ -96,7 +96,7 @@ An AI-powered crop disease detection platform that helps smallholder Indian farm
 - Return structured JSON response with disease analysis
 
 ### FR-002: AI Disease Detection Engine
-- Use Amazon Bedrock Claude 3 Sonnet for vision analysis
+- Use Amazon Bedrock Claude 3.5 Sonnet v2 for vision analysis
 - Provide fallback random analysis for demo mode
 - Return: crop type, disease key, confidence (0-1), severity level
 - Map disease key to treatment database
@@ -161,4 +161,4 @@ An AI-powered crop disease detection platform that helps smallholder Indian farm
 - **Budget**: $100 AWS credits for hackathon prototype
 - **Timeline**: 7-day development window
 - **Infrastructure**: Must use AWS services (hackathon requirement)
-- **AI Model**: Amazon Bedrock Claude 3 Sonnet (vision capabilities)
+- **AI Model**: Amazon Bedrock Claude 3.5 Sonnet v2 (vision capabilities)

@@ -11,7 +11,7 @@
 | # | AWS Service | Purpose | Required? | Est. Cost |
 |---|-------------|---------|-----------|-----------|
 | 1 | **IAM** | Access credentials | ✅ Yes | Free |
-| 2 | **Amazon Bedrock** | Claude 3 Sonnet — AI crop disease vision | ✅ Yes | ~$0.003/image |
+| 2 | **Amazon Bedrock** | Claude 3.5 Sonnet v2 — AI crop disease vision | ✅ Yes | ~$0.003/image |
 | 3 | **Amazon Translate** | Multilingual output (9 Indian languages) | ✅ Yes | ~$15/million chars |
 | 4 | **Amazon Rekognition** | Fallback label detection | ⬜ Optional | ~$0.001/image |
 | 5 | **Amazon S3** | Image archival + scan history | ⬜ Optional | ~$0.023/GB |
@@ -36,16 +36,16 @@
 2. In the left sidebar, click **"Model access"**
 3. Click **"Manage model access"** (orange button, top-right)
 4. Find and CHECK these models:
-   - ✅ **Anthropic → Claude 3 Sonnet** (`anthropic.claude-3-sonnet-20240229-v1:0`)
+   - ✅ **Anthropic → Claude 3.5 Sonnet v2** (`anthropic.claude-3-5-sonnet-20241022-v2:0`)
    - ✅ **Anthropic → Claude 3 Haiku** (optional, cheaper fallback)
 5. Click **"Request model access"**
 6. Wait 1-2 minutes for approval (usually instant for these models)
 
 ### 📝 Verify model access:
 - Go back to "Model access" page
-- Status should show **"Access granted"** ✅ next to Claude 3 Sonnet
+- Status should show **"Access granted"** ✅ next to Claude 3.5 Sonnet v2
 
-> **If Claude 3 Sonnet is not available in ap-south-1:**  
+> **If Claude 3.5 Sonnet v2 is not available in ap-south-1:**  
 > Try region `us-east-1` (Virginia) instead.  
 > Update `AWS_REGION=us-east-1` in `backend/.env`
 
@@ -133,7 +133,7 @@ AWS_REGION=ap-south-1
 
 # ── ONLY IF YOU CHANGED DEFAULTS ──
 S3_BUCKET_NAME=fasaldrishti-images
-BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
+BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
 ```
 
 I'll plug them into the `.env` file and the real AI pipeline will go live instantly.
@@ -161,7 +161,7 @@ I'll plug them into the `.env` file and the real AI pipeline will go live instan
 │  └─ Convert RGBA→RGB, compress               │
 │                                              │
 │  Stage 2: AI Analysis (fallback chain)       │
-│  ├─ 🥇 Amazon Bedrock Claude 3 Vision       │
+│  ├─ 🥇 Amazon Bedrock Claude 3.5 Sonnet v2   │
 │  │   └─ Crop ID → Disease diagnosis →        │
 │  │     Severity → Symptoms → Confidence      │
 │  ├─ 🥈 Amazon Rekognition (if Bedrock fails) │
@@ -209,7 +209,7 @@ After sharing credentials, I'll verify each service:
 
 | Activity | Unit Cost | Est. Usage | Total |
 |----------|-----------|------------|-------|
-| Bedrock Claude 3 Sonnet (vision) | ~$0.003/image | 500 demo images | $1.50 |
+| Bedrock Claude 3.5 Sonnet v2 (vision) | ~$0.003/image | 500 demo images | $1.50 |
 | Amazon Translate | $15/million chars | ~50,000 chars | $0.75 |
 | Rekognition DetectLabels | $0.001/image | 100 images | $0.10 |
 | S3 Storage | $0.023/GB | ~0.5 GB | $0.01 |

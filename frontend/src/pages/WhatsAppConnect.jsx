@@ -3,30 +3,30 @@ import { Link } from 'react-router-dom'
 import { FaWhatsapp, FaQrcode, FaCheckCircle, FaSeedling, FaArrowRight } from 'react-icons/fa'
 import { MdCameraAlt, MdTranslate, MdLocalPharmacy } from 'react-icons/md'
 
+// Hardcoded fallback so the page works as a static site without backend
+const FALLBACK_INFO = {
+  wa_me_link: 'https://wa.me/14155238886?text=join%20husband-whose',
+  qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://wa.me/14155238886?text=join%20husband-whose',
+  whatsapp_number_display: '+1 415 523 8886',
+  is_sandbox: true,
+}
+
 export default function WhatsAppConnect() {
-  const [connectInfo, setConnectInfo] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [connectInfo, setConnectInfo] = useState(FALLBACK_INFO)
+  const [loading, setLoading] = useState(false)
   const [showQR, setShowQR] = useState(true)
 
   useEffect(() => {
     fetch('/api/whatsapp/connect')
       .then(r => r.json())
-      .then(data => { setConnectInfo(data); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(data => { setConnectInfo(data) })
+      .catch(() => { /* use fallback */ })
   }, [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
-        <div className="animate-pulse text-green-400 text-lg">Loading connection info...</div>
-      </div>
-    )
-  }
-
   const info = connectInfo
-  const waLink = info?.wa_me_link || 'https://wa.me/14155238886?text=namaste'
-  const qrUrl = info?.qr_code_url || ''
-  const phoneDisplay = info?.whatsapp_number_display || '+1 415 523 8886'
+  const waLink = info?.wa_me_link || FALLBACK_INFO.wa_me_link
+  const qrUrl = info?.qr_code_url || FALLBACK_INFO.qr_code_url
+  const phoneDisplay = info?.whatsapp_number_display || FALLBACK_INFO.whatsapp_number_display
   const isSandbox = info?.is_sandbox ?? true
 
   const steps = isSandbox

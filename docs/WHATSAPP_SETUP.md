@@ -133,7 +133,7 @@ Farmer's Phone                    FasalDrishti Server                 AWS
      │                                  │    from Twilio/Meta          │
      │                                  │                              │
      │                                  │ 4. Send to Bedrock ─────────►│
-     │                                  │    Claude 3 Vision           │
+     │                                  │    Claude 3.5 Sonnet v2      │
      │                                  │                              │
      │                                  │ 5. Receive diagnosis ◄───────│
      │                                  │    + treatment plan          │

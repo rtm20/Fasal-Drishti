@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = ""
 
     # Bedrock
-    bedrock_model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
+    bedrock_model_id: str = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
 
     # S3
     s3_bucket_name: str = "fasaldrishti-images"
