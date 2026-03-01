@@ -31,13 +31,15 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #2E7D32;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #1B5E20;
+@layer base {
+  a {
+    font-weight: 500;
+    color: #2E7D32;
+    text-decoration: inherit;
+  }
+  a:hover {
+    color: #1B5E20;
+  }
 }
 
 body {
