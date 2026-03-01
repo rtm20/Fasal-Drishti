@@ -5,8 +5,8 @@ import { MdCameraAlt, MdTranslate, MdLocalPharmacy } from 'react-icons/md'
 
 // Hardcoded fallback so the page works as a static site without backend
 const FALLBACK_INFO = {
-  wa_me_link: 'https://wa.me/14155238886?text=join%20husband-whose',
-  qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://wa.me/14155238886?text=join%20husband-whose',
+  wa_me_link: 'https://wa.me/14155238886?text=join%20sky-shadow',
+  qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://wa.me/14155238886?text=join%20sky-shadow',
   whatsapp_number_display: '+1 415 523 8886',
   is_sandbox: true,
 }

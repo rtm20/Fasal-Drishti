@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     # Bedrock
     bedrock_model_id: str = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    aws_bearer_token_bedrock: str = ""
 
     # S3
     s3_bucket_name: str = "fasaldrishti-images"

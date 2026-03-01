@@ -263,28 +263,69 @@ def setup_dynamodb():
 # ============================================================
 def test_bedrock():
     separator("3. Amazon Bedrock — AI Analysis Engine")
+    
+    model_id = os.getenv("BEDROCK_MODEL_ID", "apac.anthropic.claude-3-5-sonnet-20241022-v2:0")
+    request_body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 50,
+        "messages": [{"role": "user", "content": "Say 'Namaste farmer' in Hindi"}],
+    }
+
+    # --- Method 1: Standard IAM SigV4 ---
     try:
         client = get_client("bedrock-runtime")
-        model_id = os.getenv("BEDROCK_MODEL_ID", "apac.anthropic.claude-3-5-sonnet-20241022-v2:0")
-        
         response = client.invoke_model(
             modelId=model_id,
             contentType="application/json",
             accept="application/json",
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 50,
-                "messages": [{"role": "user", "content": "Say 'Namaste farmer' in Hindi"}],
-            }),
+            body=json.dumps(request_body),
         )
         result = json.loads(response["body"].read())
         text = result["content"][0]["text"]
-        success(f"Bedrock working! Response: {text[:80]}")
+        success(f"Bedrock working (IAM auth)! Response: {text[:80]}")
         return True
-    except Exception as e:
-        fail(f"Bedrock: {e}")
-        info("If INVALID_PAYMENT_INSTRUMENT — Visa card still verifying")
-        return False
+    except Exception as iam_err:
+        info(f"IAM auth failed: {iam_err}")
+
+    # --- Method 2: Bearer Token API Key ---
+    bearer_token = os.getenv("AWS_BEARER_TOKEN_BEDROCK", "")
+    if bearer_token:
+        info("Trying Bedrock Bearer Token auth...")
+        try:
+            import urllib.request
+            import urllib.error
+            import urllib.parse
+
+            region = os.getenv("AWS_REGION", "ap-south-1")
+            encoded_model = urllib.parse.quote(model_id, safe="")
+            url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{encoded_model}/invoke"
+
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(request_body).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {bearer_token}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read())
+                text = result["content"][0]["text"]
+                success(f"Bedrock working (Bearer Token)! Response: {text[:80]}")
+                return True
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8", errors="replace")[:300]
+            fail(f"Bedrock Bearer Token HTTP {e.code}: {error_body}")
+        except Exception as bt_err:
+            fail(f"Bedrock Bearer Token failed: {bt_err}")
+    else:
+        info("No AWS_BEARER_TOKEN_BEDROCK set — skipping bearer token method")
+
+    fail("Bedrock: Both IAM and Bearer Token methods failed")
+    info("If INVALID_PAYMENT_INSTRUMENT — Visa card still verifying")
+    return False
 
 
 def test_rekognition():

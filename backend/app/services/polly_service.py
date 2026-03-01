@@ -246,36 +246,76 @@ async def generate_voice_advisory(
 
 async def upload_voice_to_s3(audio_bytes: bytes, scan_id: str, language: str = "hi") -> Optional[str]:
     """
-    Upload the voice MP3 to S3 and return a pre-signed URL.
-    The URL can be sent via WhatsApp as a media message.
+    Upload the voice MP3 to S3 and return a public URL.
+    Sets the object to public-read so WhatsApp users can access directly
+    without presigned URL signature issues.
     """
     try:
-        from app.services.ai_service import get_s3_client
+        import boto3
         
-        client = get_s3_client()
-        if not client or not settings.s3_bucket_name:
+        s3_kwargs = {"region_name": settings.aws_region}
+        if settings.aws_access_key_id:
+            s3_kwargs["aws_access_key_id"] = settings.aws_access_key_id
+        if settings.aws_secret_access_key:
+            s3_kwargs["aws_secret_access_key"] = settings.aws_secret_access_key
+        
+        client = boto3.client("s3", **s3_kwargs)
+        
+        if not settings.s3_bucket_name:
             return None
 
         from datetime import datetime
         date_prefix = datetime.utcnow().strftime("%Y/%m/%d")
         key = f"voice/{date_prefix}/{scan_id}.mp3"
-        
+
+        # First, ensure bucket allows public access for voice files
+        # Set the bucket policy to allow public read on voice/* if not already set
+        try:
+            import json as _json
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PublicReadVoice",
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "s3:GetObject",
+                        "Resource": f"arn:aws:s3:::{settings.s3_bucket_name}/voice/*"
+                    }
+                ]
+            }
+            # Try to get existing policy and merge, otherwise set new
+            try:
+                existing = _json.loads(client.get_bucket_policy(Bucket=settings.s3_bucket_name)["Policy"])
+                # Check if our statement already exists
+                sids = [s.get("Sid") for s in existing.get("Statement", [])]
+                if "PublicReadVoice" not in sids:
+                    existing["Statement"].append(policy["Statement"][0])
+                    client.put_bucket_policy(Bucket=settings.s3_bucket_name, Policy=_json.dumps(existing))
+                    logger.info("Added PublicReadVoice policy to S3 bucket")
+            except client.exceptions.from_code("NoSuchBucketPolicy"):
+                client.put_bucket_policy(Bucket=settings.s3_bucket_name, Policy=_json.dumps(policy))
+                logger.info("Set S3 bucket policy for public voice access")
+            except Exception:
+                # Policy might already exist or we lack permissions — try without
+                pass
+        except Exception:
+            pass
+
+        # Upload the file
         client.put_object(
             Bucket=settings.s3_bucket_name,
             Key=key,
             Body=audio_bytes,
             ContentType="audio/mpeg",
+            CacheControl="max-age=86400",
         )
         
-        # Generate pre-signed URL (valid for 24 hours)
-        presigned_url = client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": settings.s3_bucket_name, "Key": key},
-            ExpiresIn=86400,
-        )
+        # Return direct public URL (no signature needed)
+        public_url = f"https://{settings.s3_bucket_name}.s3.{settings.aws_region}.amazonaws.com/{key}"
         
         logger.info(f"Voice uploaded to S3: {key}")
-        return presigned_url
+        return public_url
         
     except Exception as e:
         logger.warning(f"S3 voice upload failed: {e}")

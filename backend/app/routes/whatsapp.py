@@ -4,12 +4,13 @@ Supports BOTH Meta Cloud API and Twilio WhatsApp Sandbox.
 Provider is selected via WHATSAPP_PROVIDER env var ("meta" or "twilio").
 """
 
+import asyncio
 import base64
 import logging
 import json
 from typing import Optional
 
-from fastapi import APIRouter, Request, HTTPException, Query, Response
+from fastapi import APIRouter, Request, HTTPException, Query, Response, BackgroundTasks
 from fastapi.responses import PlainTextResponse, JSONResponse
 
 from app.services.ai_service import analyze_crop_image, get_pipeline_status
@@ -725,81 +726,29 @@ async def _handle_twilio_webhook(request: Request):
                 result = await analyze_crop_image(image_base64, media_type, user_lang, from_number)
                 response_text = format_whatsapp_response(result, user_lang)
 
-                # Save scan to DynamoDB
-                try:
-                    import uuid
-                    scan_id = str(uuid.uuid4())[:8]
-                    await save_scan({
-                        "scan_id": scan_id,
-                        "phone_number": from_number,
-                        "crop": result["analysis"]["crop"],
-                        "disease_key": result["analysis"]["disease_key"],
-                        "disease_name": result["analysis"]["disease_name"],
-                        "severity": result["analysis"]["severity"],
-                        "confidence": result["analysis"]["confidence"],
-                        "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
-                        "analysis_engine": result.get("metadata", {}).get("analysis_engine", "unknown"),
-                        "language": user_lang,
-                        "source": "whatsapp_twilio",
-                    })
-                    await increment_user_scan_count(from_number)
-                except Exception as db_err:
-                    logger.debug(f"DynamoDB scan save skipped: {db_err}")
-
-                # Publish CloudWatch metrics
-                try:
-                    latency = result.get("metadata", {}).get("pipeline_latency_ms", 0)
-                    publish_scan_metric(
-                        crop=result["analysis"]["crop"],
-                        disease=result["analysis"]["disease_key"],
-                        severity=result["analysis"]["severity"],
-                        latency_ms=latency,
-                        analysis_method=result.get("metadata", {}).get("analysis_engine", "unknown"),
-                    )
-                    cloudwatch_logger.log_scan(
-                        scan_id=scan_id,
-                        phone_number=from_number,
-                        crop=result["analysis"]["crop"],
-                        disease=result["analysis"]["disease_key"],
-                        severity=result["analysis"]["severity"],
-                        confidence=result["analysis"]["confidence"],
-                        analysis_method=result.get("metadata", {}).get("analysis_engine", "unknown"),
-                        latency_ms=latency,
-                        language=user_lang,
-                    )
-                    publish_whatsapp_metric("inbound", "image")
-                except Exception:
-                    pass
-
-                # Generate voice advisory via Amazon Polly
-                voice_twiml = ""
-                try:
-                    voice_bytes = await generate_voice_advisory(result, user_lang)
-                    if voice_bytes:
-                        voice_url = await upload_voice_to_s3(voice_bytes, scan_id, user_lang)
-                        if voice_url:
-                            voice_twiml = f"\n    <Message>{voice_url}</Message>"
-                            logger.info(f"Voice advisory generated for {from_number}")
-                except Exception as polly_err:
-                    logger.debug(f"Polly voice generation skipped: {polly_err}")
+                # Schedule background tasks (DynamoDB, CloudWatch, Polly)
+                # These run AFTER the TwiML response is returned to Twilio
+                import uuid
+                scan_id = str(uuid.uuid4())[:8]
+                asyncio.get_event_loop().create_task(
+                    _twilio_post_analysis_tasks(scan_id, from_number, to_number, result, user_lang)
+                )
 
             else:
                 response_text = t["image_error"]
-                voice_twiml = ""
         else:
             # Text message
             response_text = get_text_response(body_text, user_lang)
-            voice_twiml = ""
             try:
                 publish_whatsapp_metric("inbound", "text")
                 cloudwatch_logger.log_whatsapp_message(from_number, "inbound", "text", user_lang)
             except Exception:
                 pass
 
-        # Return TwiML response (Twilio's XML reply format)
+        # Return TwiML response immediately (Twilio's XML reply format)
         twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Message>{_escape_xml(response_text)}</Message>{voice_twiml}
+    <Message>{_escape_xml(response_text)}</Message>
 </Response>"""
 
         return Response(content=twiml, media_type="application/xml")
@@ -862,6 +811,82 @@ async def send_twilio_message(to: str, body: str):
     except Exception as e:
         logger.error(f"Twilio send failed: {e}")
         return None
+
+
+# ============================================================
+# BACKGROUND POST-ANALYSIS TASKS  (runs after TwiML response)
+# ============================================================
+
+async def _twilio_post_analysis_tasks(
+    scan_id: str,
+    from_number: str,
+    to_number: str,
+    result: dict,
+    user_lang: str,
+):
+    """
+    Run after the TwiML response is already sent to Twilio.
+    Saves to DynamoDB, publishes CloudWatch metrics, generates Polly voice
+    and sends it as a follow-up Twilio message.
+    """
+    # --- DynamoDB save ---
+    try:
+        from datetime import datetime, timezone
+        await save_scan({
+            "scan_id": scan_id,
+            "phone_number": from_number,
+            "crop": result["analysis"]["crop"],
+            "disease_key": result["analysis"]["disease_key"],
+            "disease_name": result["analysis"]["disease_name"],
+            "severity": result["analysis"]["severity"],
+            "confidence": result["analysis"]["confidence"],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "analysis_engine": result.get("metadata", {}).get("analysis_engine", "unknown"),
+            "language": user_lang,
+            "source": "whatsapp_twilio",
+        })
+        await increment_user_scan_count(from_number)
+        logger.info(f"Background: scan {scan_id} saved to DynamoDB")
+    except Exception as db_err:
+        logger.debug(f"Background DynamoDB save skipped: {db_err}")
+
+    # --- CloudWatch metrics ---
+    try:
+        latency = result.get("metadata", {}).get("pipeline_latency_ms", 0)
+        publish_scan_metric(
+            crop=result["analysis"]["crop"],
+            disease=result["analysis"]["disease_key"],
+            severity=result["analysis"]["severity"],
+            latency_ms=latency,
+            analysis_method=result.get("metadata", {}).get("analysis_engine", "unknown"),
+        )
+        cloudwatch_logger.log_scan(
+            scan_id=scan_id,
+            phone_number=from_number,
+            crop=result["analysis"]["crop"],
+            disease=result["analysis"]["disease_key"],
+            severity=result["analysis"]["severity"],
+            confidence=result["analysis"]["confidence"],
+            analysis_method=result.get("metadata", {}).get("analysis_engine", "unknown"),
+            latency_ms=latency,
+            language=user_lang,
+        )
+        publish_whatsapp_metric("inbound", "image")
+        logger.info(f"Background: CloudWatch metrics published for {scan_id}")
+    except Exception:
+        pass
+
+    # --- Polly voice advisory (sent as follow-up message) ---
+    try:
+        voice_bytes = await generate_voice_advisory(result, user_lang)
+        if voice_bytes:
+            voice_url = await upload_voice_to_s3(voice_bytes, scan_id, user_lang)
+            if voice_url:
+                # Send voice URL as a follow-up Twilio message
+                await send_twilio_message(from_number, f"🔊 Voice Advisory: {voice_url}")
+                logger.info(f"Background: voice advisory sent to {from_number}")
+    except Exception as polly_err:
+        logger.debug(f"Background Polly voice skipped: {polly_err}")
 
 
 # ============================================================

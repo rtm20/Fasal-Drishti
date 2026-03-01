@@ -28,6 +28,43 @@ logger = logging.getLogger("fasaldrishti.ai")
 settings = get_settings()
 
 # ============================================================
+# CIRCUIT BREAKER — skip Bedrock after repeated failures
+# ============================================================
+_bedrock_circuit = {
+    "failures": 0,
+    "last_failure_time": 0,
+    "open": False,  # True = skip Bedrock entirely
+}
+BEDROCK_CIRCUIT_THRESHOLD = 2   # failures before opening
+BEDROCK_CIRCUIT_RESET_SECS = 300  # retry after 5 minutes
+
+def _bedrock_circuit_is_open() -> bool:
+    """Check if we should skip Bedrock (circuit is open)."""
+    if not _bedrock_circuit["open"]:
+        return False
+    # Check if enough time has passed to retry
+    elapsed = time.time() - _bedrock_circuit["last_failure_time"]
+    if elapsed > BEDROCK_CIRCUIT_RESET_SECS:
+        logger.info("Bedrock circuit breaker reset — will retry")
+        _bedrock_circuit["open"] = False
+        _bedrock_circuit["failures"] = 0
+        return False
+    return True
+
+def _bedrock_circuit_record_failure():
+    """Record a Bedrock failure; open circuit if threshold reached."""
+    _bedrock_circuit["failures"] += 1
+    _bedrock_circuit["last_failure_time"] = time.time()
+    if _bedrock_circuit["failures"] >= BEDROCK_CIRCUIT_THRESHOLD:
+        _bedrock_circuit["open"] = True
+        logger.warning(f"Bedrock circuit breaker OPEN after {_bedrock_circuit['failures']} failures. Will retry in {BEDROCK_CIRCUIT_RESET_SECS}s")
+
+def _bedrock_circuit_record_success():
+    """Reset circuit breaker on success."""
+    _bedrock_circuit["failures"] = 0
+    _bedrock_circuit["open"] = False
+
+# ============================================================
 # AWS CLIENT FACTORY (lazy, cached)
 # ============================================================
 _clients: dict = {}
@@ -38,7 +75,21 @@ def _get_aws_client(service: str):
     if service not in _clients:
         try:
             import boto3
-            kwargs = {"region_name": settings.aws_region}
+            from botocore.config import Config
+            # Short timeouts for Bedrock to avoid blocking WhatsApp webhook
+            if service == "bedrock-runtime":
+                svc_config = Config(
+                    connect_timeout=5,
+                    read_timeout=10,
+                    retries={"max_attempts": 0},
+                )
+            else:
+                svc_config = Config(
+                    connect_timeout=5,
+                    read_timeout=10,
+                    retries={"max_attempts": 1},
+                )
+            kwargs = {"region_name": settings.aws_region, "config": svc_config}
             if settings.aws_access_key_id:
                 kwargs["aws_access_key_id"] = settings.aws_access_key_id
             if settings.aws_secret_access_key:
@@ -184,60 +235,144 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown, no code blocks, no explana
 """
 
 
+async def _invoke_bedrock_bearer_token(request_body: dict) -> Optional[dict]:
+    """
+    Call Bedrock using the API Key (Bearer Token) instead of IAM SigV4.
+    This bypasses INVALID_PAYMENT_INSTRUMENT issues from Marketplace.
+    
+    Uses HTTP POST to:
+      https://bedrock-runtime.{region}.amazonaws.com/model/{model}/invoke
+    with header: Authorization: Bearer {api-key}
+    """
+    bearer_token = settings.aws_bearer_token_bedrock
+    if not bearer_token:
+        return None
+
+    import urllib.request
+    import urllib.error
+
+    # Strip the "apac." cross-region prefix for the direct API endpoint
+    model_id = settings.bedrock_model_id
+    # URL-encode the model ID (it contains slashes in ARN format sometimes)
+    import urllib.parse
+    encoded_model = urllib.parse.quote(model_id, safe="")
+
+    url = f"https://bedrock-runtime.{settings.aws_region}.amazonaws.com/model/{encoded_model}/invoke"
+
+    headers = {
+        "Authorization": f"Bearer {bearer_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    body_bytes = json.dumps(request_body).encode("utf-8")
+
+    req = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
+
+    try:
+        start_time = time.time()
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            latency_ms = int((time.time() - start_time) * 1000)
+            response_body = json.loads(resp.read())
+            return {"body": response_body, "latency_ms": latency_ms}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="replace")
+        logger.error(f"Bedrock Bearer Token API error {e.code}: {error_body[:500]}")
+        return None
+    except Exception as e:
+        logger.error(f"Bedrock Bearer Token request failed: {e}")
+        return None
+
+
 async def analyze_image_with_bedrock(image_base64: str, media_type: str = "image/jpeg") -> Optional[dict]:
     """
     Send image to Amazon Bedrock Claude 3 Sonnet for comprehensive crop disease analysis.
     Uses vision capabilities for multi-stage identification:
       crop type → health status → disease diagnosis → severity rating
+    
+    Auth strategy:
+      1. Try standard IAM SigV4 (boto3 invoke_model)
+      2. If IAM fails (e.g. INVALID_PAYMENT_INSTRUMENT) → try Bearer Token API Key
     """
+
+    # Build the multimodal request (shared by both auth methods)
+    request_body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1500,
+        "temperature": 0.1,  # Low temperature for consistent agricultural analysis
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": image_base64,
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": CROP_ANALYSIS_PROMPT,
+                    },
+                ],
+            }
+        ],
+    }
+
+    # --- Circuit Breaker Check ---
+    if _bedrock_circuit_is_open():
+        logger.info("Bedrock circuit breaker is OPEN — skipping Bedrock entirely")
+        return None
+
+    response_body = None
+    latency_ms = 0
+    auth_method = "iam"
+
+    # --- Method 1: Standard IAM SigV4 via boto3 ---
     try:
         client = get_bedrock_client()
-        if not client:
-            logger.warning("Bedrock client unavailable")
-            return None
+        if client:
+            start_time = time.time()
+            response = client.invoke_model(
+                modelId=settings.bedrock_model_id,
+                body=json.dumps(request_body),
+                contentType="application/json",
+                accept="application/json",
+            )
+            latency_ms = int((time.time() - start_time) * 1000)
+            response_body = json.loads(response["body"].read())
+            auth_method = "iam"
+            logger.info(f"Bedrock IAM auth succeeded in {latency_ms}ms")
+            _bedrock_circuit_record_success()
+    except Exception as iam_err:
+        logger.warning(f"Bedrock IAM auth failed: {iam_err}")
+        response_body = None
 
-        # Build the multimodal request
-        request_body = {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 1500,
-            "temperature": 0.1,  # Low temperature for consistent medical/agricultural analysis
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": image_base64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": CROP_ANALYSIS_PROMPT,
-                        },
-                    ],
-                }
-            ],
-        }
+    # --- Method 2: Bearer Token API Key (fallback) ---
+    if response_body is None and settings.aws_bearer_token_bedrock:
+        logger.info("Trying Bedrock Bearer Token auth...")
+        bearer_result = await _invoke_bedrock_bearer_token(request_body)
+        if bearer_result:
+            response_body = bearer_result["body"]
+            latency_ms = bearer_result["latency_ms"]
+            auth_method = "bearer_token"
+            logger.info(f"Bedrock Bearer Token auth succeeded in {latency_ms}ms")
+            _bedrock_circuit_record_success()
 
-        start_time = time.time()
-        response = client.invoke_model(
-            modelId=settings.bedrock_model_id,
-            body=json.dumps(request_body),
-            contentType="application/json",
-            accept="application/json",
-        )
-        latency_ms = int((time.time() - start_time) * 1000)
+    if response_body is None:
+        _bedrock_circuit_record_failure()
+        logger.error("Bedrock analysis failed with both IAM and Bearer Token")
+        return None
 
-        response_body = json.loads(response["body"].read())
+    try:
         result_text = response_body["content"][0]["text"]
         input_tokens = response_body.get("usage", {}).get("input_tokens", 0)
         output_tokens = response_body.get("usage", {}).get("output_tokens", 0)
 
         logger.info(
-            f"Bedrock response: {latency_ms}ms, tokens={input_tokens}+{output_tokens}"
+            f"Bedrock response: {latency_ms}ms, tokens={input_tokens}+{output_tokens}, auth={auth_method}"
         )
 
         # Robust JSON extraction — handles markdown-wrapped responses too
@@ -248,6 +383,7 @@ async def analyze_image_with_bedrock(image_base64: str, media_type: str = "image
                 "model": settings.bedrock_model_id,
                 "latency_ms": latency_ms,
                 "tokens": input_tokens + output_tokens,
+                "auth_method": auth_method,
             }
             logger.info(
                 f"Bedrock diagnosis: crop={result.get('crop')}, "
@@ -260,14 +396,8 @@ async def analyze_image_with_bedrock(image_base64: str, media_type: str = "image
             logger.warning(f"Could not parse JSON from Bedrock response: {result_text[:300]}")
             return None
 
-    except client.exceptions.ThrottlingException:
-        logger.warning("Bedrock throttled — falling back")
-        return None
-    except client.exceptions.ModelTimeoutException:
-        logger.warning("Bedrock timeout — falling back")
-        return None
     except Exception as e:
-        logger.error(f"Bedrock analysis failed: {e}")
+        logger.error(f"Bedrock response parsing failed: {e}")
         return None
 
 
