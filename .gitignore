@@ -43,3 +43,9 @@ Desktop.ini
 
 # ngrok
 *.ngrok*
+
+# Test scripts with credentials
+check_twilio.py
+test_image_webhook.py
+test_timing.py
+test_timing2.py
