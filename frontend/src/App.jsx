@@ -10,7 +10,7 @@ import WhatsAppConnect from './pages/WhatsAppConnect'
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-[#0f0f1a] text-white">
+        <div className="min-h-screen bg-[#FFFDF7] text-[#1B3409]">
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />

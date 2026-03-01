@@ -12,32 +12,32 @@ const stats = [
 
 const features = [
   {
-    icon: <MdCameraAlt className="text-3xl text-green-400" />,
+    icon: <MdCameraAlt className="text-3xl text-[#2E7D32]" />,
     title: 'Snap & Detect',
     desc: 'Simply photograph a crop leaf and get instant AI-powered disease diagnosis with confidence scores.',
   },
   {
-    icon: <FaWhatsapp className="text-3xl text-green-400" />,
+    icon: <FaWhatsapp className="text-3xl text-[#25D366]" />,
     title: 'WhatsApp Integration',
     desc: 'Send crop images via WhatsApp — no app download needed. Works on any phone farmers already own.',
   },
   {
-    icon: <FaLanguage className="text-3xl text-green-400" />,
+    icon: <FaLanguage className="text-3xl text-[#D4A017]" />,
     title: '11 Indian Languages',
     desc: 'Receive treatment advice in Hindi, Tamil, Telugu, Kannada, Bengali and more regional languages.',
   },
   {
-    icon: <MdLocalPharmacy className="text-3xl text-green-400" />,
+    icon: <MdLocalPharmacy className="text-3xl text-[#2E7D32]" />,
     title: 'Treatment Plans',
     desc: 'Get actionable treatment recommendations with exact dosage, organic alternatives, and cost estimates.',
   },
   {
-    icon: <FaBrain className="text-3xl text-green-400" />,
+    icon: <FaBrain className="text-3xl text-[#795548]" />,
     title: 'Powered by AI',
     desc: 'Amazon Bedrock Claude 3.5 Sonnet v2 vision model delivers expert-grade analysis from just a photograph.',
   },
   {
-    icon: <MdSpeed className="text-3xl text-green-400" />,
+    icon: <MdSpeed className="text-3xl text-[#D4A017]" />,
     title: 'Works Offline-First',
     desc: 'Lightweight design optimized for low-bandwidth rural networks with minimal data usage.',
   },
@@ -52,49 +52,50 @@ export default function Home() {
   useEffect(() => { setVisible(true) }, [])
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white">
+    <div className="min-h-screen bg-[#FFFDF7] text-[#1B3409]">
       {/* Hero */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Glow bg */}
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-green-500/10 blur-[120px] pointer-events-none" />
+        {/* Warm glow bg */}
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#2E7D32]/5 blur-[120px] pointer-events-none" />
+        <div className="absolute top-40 right-1/4 w-[300px] h-[300px] rounded-full bg-[#D4A017]/8 blur-[100px] pointer-events-none" />
 
         <div className={`max-w-5xl mx-auto text-center relative z-10 transition-all duration-1000 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 text-sm mb-6">
-            <FaSeedling /> AI for Bharat Hackathon — Track&nbsp;03
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#D4A017]/30 bg-[#D4A017]/10 text-[#8B6914] text-sm mb-6 font-medium">
+            <FaSeedling className="text-[#2E7D32]" /> AI for Bharat Hackathon — Track&nbsp;03
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight mb-6">
-            <span className="bg-gradient-to-r from-green-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent">
+            <span className="text-[#2E7D32]">
               Instant Crop Disease Detection
             </span>
             <br />
-            <span className="text-gray-200 text-3xl sm:text-4xl">
-              for Every Indian Farmer
+            <span className="text-[#4A5726] text-3xl sm:text-4xl">
+              for Every Indian Farmer 🌾
             </span>
           </h1>
 
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg mb-10 leading-relaxed">
-            <strong className="text-white">FasalDrishti</strong> uses AI-powered image analysis to identify crop diseases in seconds — 
-            accessible through <span className="text-green-400">WhatsApp</span> in <span className="text-green-400">11 Indian languages</span>. 
+          <p className="text-[#5a6b3c] max-w-2xl mx-auto text-lg mb-10 leading-relaxed">
+            <strong className="text-[#1B3409]">FasalDrishti</strong> uses AI-powered image analysis to identify crop diseases in seconds — 
+            accessible through <span className="text-[#25D366] font-semibold">WhatsApp</span> in <span className="text-[#D4A017] font-semibold">11 Indian languages</span>. 
             Get treatment advice with dosage, cost, and organic alternatives.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
               to="/connect"
-              className="px-8 py-3 bg-[#25D366] text-white rounded-full text-lg font-semibold hover:shadow-xl hover:shadow-green-500/30 transition-all no-underline flex items-center justify-center gap-2"
+              className="px-8 py-3 bg-[#25D366] text-white rounded-full text-lg font-semibold hover:bg-[#20bd5a] hover:shadow-lg transition-all no-underline flex items-center justify-center gap-2 shadow-md"
             >
               <FaWhatsapp /> Connect via WhatsApp
             </Link>
             <Link
               to="/analyze"
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white rounded-full text-lg font-semibold hover:shadow-xl hover:shadow-green-500/30 transition-all no-underline flex items-center justify-center gap-2"
+              className="px-8 py-3 bg-[#2E7D32] text-white rounded-full text-lg font-semibold hover:bg-[#1B5E20] hover:shadow-lg transition-all no-underline flex items-center justify-center gap-2 shadow-md"
             >
-              🔬 Try Disease Detection
+              🌿 Try Disease Detection
             </Link>
             <Link
               to="/dashboard"
-              className="px-8 py-3 border border-green-500/30 text-green-400 rounded-full text-lg font-semibold hover:bg-green-500/10 transition-all no-underline flex items-center justify-center gap-2"
+              className="px-8 py-3 border-2 border-[#2E7D32]/30 text-[#2E7D32] rounded-full text-lg font-semibold hover:bg-[#2E7D32]/5 transition-all no-underline flex items-center justify-center gap-2"
             >
               📊 View Dashboard
             </Link>
@@ -103,12 +104,12 @@ export default function Home() {
       </section>
 
       {/* Stats */}
-      <section className="py-12 border-y border-green-900/20">
+      <section className="py-12 border-y border-[#d4c5a0]/40 bg-[#F7F0E3]/50">
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {stats.map(s => (
             <div key={s.label}>
-              <div className="text-3xl font-bold text-green-400">{s.value}</div>
-              <div className="text-gray-400 text-sm mt-1">{s.label}</div>
+              <div className="text-3xl font-bold text-[#2E7D32]">{s.value}</div>
+              <div className="text-[#7A8856] text-sm mt-1">{s.label}</div>
             </div>
           ))}
         </div>
@@ -117,8 +118,8 @@ export default function Home() {
       {/* How it works */}
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">How It Works</h2>
-          <p className="text-gray-400 text-center mb-12 max-w-lg mx-auto">Three simple steps — no app download, no registration needed.</p>
+          <h2 className="text-3xl font-bold text-center mb-4 text-[#1B3409]">How It Works</h2>
+          <p className="text-[#7A8856] text-center mb-12 max-w-lg mx-auto">Three simple steps — no app download, no registration needed.</p>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -126,11 +127,11 @@ export default function Home() {
               { step: '2', emoji: '🤖', title: 'Analyze', desc: 'Our AI engine identifies the disease, severity level, and confidence score in under 3 seconds.' },
               { step: '3', emoji: '💊', title: 'Treat', desc: 'Receive treatment plan with exact dosage, organic options, and cost estimates in your language.' },
             ].map(item => (
-              <div key={item.step} className="relative p-6 rounded-2xl bg-gradient-to-b from-green-900/20 to-transparent border border-green-900/30 text-center">
+              <div key={item.step} className="relative p-6 rounded-2xl bg-white border border-[#d4c5a0]/40 text-center shadow-sm hover:shadow-md transition-shadow">
                 <div className="text-4xl mb-4">{item.emoji}</div>
-                <div className="text-xs text-green-500 font-bold tracking-widest mb-2">STEP {item.step}</div>
-                <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
+                <div className="text-xs text-[#D4A017] font-bold tracking-widest mb-2">STEP {item.step}</div>
+                <h3 className="text-xl font-semibold mb-2 text-[#1B3409]">{item.title}</h3>
+                <p className="text-[#7A8856] text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -138,17 +139,17 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-20 px-4 bg-[#0d0d1a]">
+      <section className="py-20 px-4 bg-[#F7F0E3]/40">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Key Features</h2>
-          <p className="text-gray-400 text-center mb-12 max-w-lg mx-auto">Built specifically for smallholder farmers across rural India.</p>
+          <h2 className="text-3xl font-bold text-center mb-4 text-[#1B3409]">Key Features</h2>
+          <p className="text-[#7A8856] text-center mb-12 max-w-lg mx-auto">Built specifically for smallholder farmers across rural India.</p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map(f => (
-              <div key={f.title} className="p-6 rounded-2xl border border-green-900/20 hover:border-green-500/30 transition-colors bg-[#0f0f1a]">
-                <div className="mb-4">{f.icon}</div>
-                <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+              <div key={f.title} className="p-6 rounded-2xl border border-[#d4c5a0]/40 hover:border-[#2E7D32]/30 transition-all bg-white shadow-sm hover:shadow-md">
+                <div className="mb-4 w-12 h-12 rounded-xl bg-[#2E7D32]/5 flex items-center justify-center">{f.icon}</div>
+                <h3 className="text-lg font-semibold mb-2 text-[#1B3409]">{f.title}</h3>
+                <p className="text-[#7A8856] text-sm leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -159,18 +160,18 @@ export default function Home() {
       <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-12">
           <div>
-            <h3 className="text-2xl font-bold mb-6">Supported Crops</h3>
+            <h3 className="text-2xl font-bold mb-6 text-[#1B3409]">Supported Crops</h3>
             <div className="flex flex-wrap gap-3">
               {crops.map(c => (
-                <span key={c} className="px-4 py-2 rounded-full bg-green-900/30 border border-green-700/30 text-sm">{c}</span>
+                <span key={c} className="px-4 py-2 rounded-full bg-[#2E7D32]/5 border border-[#2E7D32]/20 text-sm text-[#2E7D32] font-medium">{c}</span>
               ))}
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-bold mb-6">Supported Languages</h3>
+            <h3 className="text-2xl font-bold mb-6 text-[#1B3409]">Supported Languages</h3>
             <div className="flex flex-wrap gap-3">
               {languages.map(l => (
-                <span key={l} className="px-4 py-2 rounded-full bg-emerald-900/30 border border-emerald-700/30 text-sm">{l}</span>
+                <span key={l} className="px-4 py-2 rounded-full bg-[#D4A017]/5 border border-[#D4A017]/20 text-sm text-[#8B6914] font-medium">{l}</span>
               ))}
             </div>
           </div>
@@ -178,13 +179,13 @@ export default function Home() {
       </section>
 
       {/* Tech stack */}
-      <section className="py-20 px-4 bg-[#0d0d1a]">
+      <section className="py-20 px-4 bg-[#F7F0E3]/40">
         <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-4">Powered by AWS</h2>
-          <p className="text-gray-400 mb-10 max-w-lg mx-auto">Enterprise-grade cloud infrastructure for reliable, scalable AI at the edge.</p>
+          <h2 className="text-3xl font-bold mb-4 text-[#1B3409]">Powered by AWS ☁️</h2>
+          <p className="text-[#7A8856] mb-10 max-w-lg mx-auto">Enterprise-grade cloud infrastructure for reliable, scalable AI at the edge.</p>
           <div className="flex flex-wrap justify-center gap-4">
             {['Amazon Bedrock', 'Claude 3.5 Sonnet v2', 'Amazon Rekognition', 'Amazon S3', 'DynamoDB', 'API Gateway', 'Lambda', 'Amazon Translate', 'Amazon Polly', 'CloudWatch'].map(t => (
-              <span key={t} className="px-5 py-2.5 rounded-xl bg-[#0f0f1a] border border-gray-700/50 text-gray-300 text-sm font-medium">
+              <span key={t} className="px-5 py-2.5 rounded-xl bg-white border border-[#d4c5a0]/40 text-[#4A5726] text-sm font-medium shadow-sm">
                 {t}
               </span>
             ))}
@@ -195,30 +196,30 @@ export default function Home() {
       {/* CTA */}
       <section className="py-24 px-4 text-center">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">Ready to Protect Your Crops?</h2>
-          <p className="text-gray-400 mb-8">Connect on WhatsApp — send a crop photo, get AI diagnosis in Hindi. No app needed.</p>
+          <h2 className="text-3xl font-bold mb-4 text-[#1B3409]">Ready to Protect Your Crops? 🌱</h2>
+          <p className="text-[#7A8856] mb-8">Connect on WhatsApp — send a crop photo, get AI diagnosis in Hindi. No app needed.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
               to="/connect"
-              className="inline-flex items-center gap-3 px-10 py-4 bg-[#25D366] text-white rounded-full text-lg font-bold hover:bg-[#20bd5a] transition-all no-underline shadow-lg shadow-green-500/20"
+              className="inline-flex items-center gap-3 px-10 py-4 bg-[#25D366] text-white rounded-full text-lg font-bold hover:bg-[#20bd5a] transition-all no-underline shadow-lg"
             >
               <FaWhatsapp className="text-2xl" /> Connect on WhatsApp
             </Link>
             <Link
               to="/analyze"
-              className="inline-flex items-center gap-2 px-10 py-4 bg-gradient-to-r from-green-600 to-emerald-500 text-white rounded-full text-lg font-semibold hover:shadow-xl hover:shadow-green-500/30 transition-all no-underline"
+              className="inline-flex items-center gap-2 px-10 py-4 bg-[#2E7D32] text-white rounded-full text-lg font-semibold hover:bg-[#1B5E20] transition-all no-underline shadow-lg"
             >
-              🔬 Analyze a Crop Image
+              🌿 Analyze a Crop Image
             </Link>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-green-900/20 py-8 px-4 text-center text-gray-500 text-sm">
+      <footer className="border-t border-[#d4c5a0]/40 py-8 px-4 text-center text-[#7A8856] text-sm bg-[#F7F0E3]/30">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <FaSeedling className="text-green-500" />
-          <span className="font-semibold text-gray-300">FasalDrishti</span>
+          <FaSeedling className="text-[#2E7D32]" />
+          <span className="font-semibold text-[#1B3409]">FasalDrishti</span>
         </div>
         <p>AI for Bharat Hackathon 2026 — Track 03: Rural Innovation & Sustainable Systems</p>
         <p className="mt-1">Built with ❤️ for Indian farmers using Amazon Web Services</p>

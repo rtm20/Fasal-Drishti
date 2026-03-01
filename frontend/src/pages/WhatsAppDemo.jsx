@@ -168,22 +168,20 @@ export default function WhatsAppDemo() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white pt-20 pb-8 px-4">
+    <div className="min-h-screen bg-[#FFFDF7] text-[#1B3409] pt-20 pb-8 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header info */}
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold mb-1">
-            <span className="bg-gradient-to-r from-green-400 to-emerald-300 bg-clip-text text-transparent">
-              WhatsApp Integration Demo
-            </span>
+          <h1 className="text-2xl font-bold mb-1 text-[#2E7D32]">
+            WhatsApp Integration Demo
           </h1>
-          <p className="text-gray-400 text-sm">
+          <p className="text-[#7A8856] text-sm">
             Simulates how farmers interact with FasalDrishti via WhatsApp
           </p>
         </div>
 
         {/* Phone Frame */}
-        <div className="rounded-3xl border-2 border-gray-700 overflow-hidden shadow-2xl shadow-green-900/20 max-w-md mx-auto">
+        <div className="rounded-3xl border-2 border-[#d4c5a0]/60 overflow-hidden shadow-xl max-w-md mx-auto">
           {/* WhatsApp Header */}
           <div className="bg-[#1f2c34] px-4 py-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
@@ -300,26 +298,26 @@ export default function WhatsAppDemo() {
 
         {/* Instructions */}
         <div className="mt-6 space-y-3 max-w-md mx-auto">
-          <div className="p-4 rounded-xl bg-green-900/10 border border-green-900/20">
-            <h3 className="text-green-400 font-semibold text-sm mb-2">📱 Try It Out</h3>
-            <ul className="text-gray-400 text-xs space-y-1.5 leading-relaxed">
-              <li>• Click the <strong className="text-gray-300">📎 paperclip</strong> icon to upload a crop leaf image</li>
-              <li>• Type <strong className="text-gray-300">"namaste"</strong> or <strong className="text-gray-300">"help"</strong> for guided responses</li>
-              <li>• AI will analyze the image and respond in <strong className="text-gray-300">Hindi</strong> with disease info + treatment</li>
+          <div className="p-4 rounded-xl bg-[#25D366]/5 border border-[#25D366]/20">
+            <h3 className="text-[#25D366] font-semibold text-sm mb-2">📱 Try It Out</h3>
+            <ul className="text-[#7A8856] text-xs space-y-1.5 leading-relaxed">
+              <li>• Click the <strong className="text-[#4A5726]">📎 paperclip</strong> icon to upload a crop leaf image</li>
+              <li>• Type <strong className="text-[#4A5726]">"namaste"</strong> or <strong className="text-[#4A5726]">"help"</strong> for guided responses</li>
+              <li>• AI will analyze the image and respond in <strong className="text-[#4A5726]">Hindi</strong> with disease info + treatment</li>
             </ul>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#0f0f1a] border border-green-900/20">
-            <h3 className="text-gray-300 font-semibold text-sm mb-2">🔗 Real WhatsApp Connection</h3>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              This demo uses <strong className="text-gray-400">Twilio WhatsApp Sandbox</strong> or <strong className="text-gray-400">Meta Cloud API</strong> for real WhatsApp integration.
+          <div className="p-4 rounded-xl bg-white border border-[#d4c5a0]/40 shadow-sm">
+            <h3 className="text-[#1B3409] font-semibold text-sm mb-2">🔗 Real WhatsApp Connection</h3>
+            <p className="text-[#7A8856] text-xs leading-relaxed">
+              This demo uses <strong className="text-[#4A5726]">Twilio WhatsApp Sandbox</strong> or <strong className="text-[#4A5726]">Meta Cloud API</strong> for real WhatsApp integration.
               Farmers send crop photos to the WhatsApp number and receive AI diagnosis in Hindi — no app install needed.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <span className="px-2 py-1 rounded bg-green-900/20 text-green-400 text-[10px]">Twilio Sandbox</span>
-              <span className="px-2 py-1 rounded bg-green-900/20 text-green-400 text-[10px]">Meta Cloud API</span>
-              <span className="px-2 py-1 rounded bg-green-900/20 text-green-400 text-[10px]">Amazon Bedrock AI</span>
-              <span className="px-2 py-1 rounded bg-green-900/20 text-green-400 text-[10px]">Hindi Response</span>
+              <span className="px-2 py-1 rounded bg-[#2E7D32]/10 text-[#2E7D32] text-[10px]">Twilio Sandbox</span>
+              <span className="px-2 py-1 rounded bg-[#2E7D32]/10 text-[#2E7D32] text-[10px]">Meta Cloud API</span>
+              <span className="px-2 py-1 rounded bg-[#D4A017]/10 text-[#D4A017] text-[10px]">Amazon Bedrock AI</span>
+              <span className="px-2 py-1 rounded bg-[#795548]/10 text-[#795548] text-[10px]">Hindi Response</span>
             </div>
           </div>
         </div>
