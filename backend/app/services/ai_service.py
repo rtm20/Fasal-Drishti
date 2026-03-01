@@ -715,12 +715,18 @@ def get_pipeline_status() -> dict:
     rekognition_ok = get_rekognition_client() is not None
     translate_ok = get_translate_client() is not None
     s3_ok = get_s3_client() is not None
+    polly_ok = _get_aws_client("polly") is not None
+    dynamodb_ok = _get_aws_client("dynamodb") is not None
+    cloudwatch_ok = _get_aws_client("cloudwatch") is not None
 
     return {
         "bedrock": {"available": bedrock_ok, "model": settings.bedrock_model_id},
         "rekognition": {"available": rekognition_ok},
         "translate": {"available": translate_ok},
         "s3": {"available": s3_ok, "bucket": settings.s3_bucket_name},
+        "polly": {"available": polly_ok, "voice": "Kajal (hi-IN, neural)"},
+        "dynamodb": {"available": dynamodb_ok, "tables": [settings.dynamodb_table_scans, settings.dynamodb_table_users]},
+        "cloudwatch": {"available": cloudwatch_ok, "namespace": "FasalDrishti"},
         "disease_db": {"available": True, "diseases": len(DISEASE_DATABASE), "crops": len(CROP_DISEASES)},
         "active_engine": "bedrock" if bedrock_ok else ("rekognition" if rekognition_ok else "fallback_demo"),
     }

@@ -12,7 +12,7 @@ const techStack = [
   },
   {
     category: 'AWS Services',
-    items: ['Bedrock (Claude 3.5 Sonnet v2)', 'S3', 'DynamoDB', 'Lambda', 'API Gateway', 'Translate', 'Polly', 'CloudWatch'],
+    items: ['Bedrock (Claude 3.5 Sonnet v2)', 'Rekognition', 'S3', 'DynamoDB', 'Lambda', 'API Gateway', 'Translate', 'Polly', 'CloudWatch'],
   },
   {
     category: 'Integration',
@@ -120,9 +120,12 @@ export default function About() {
             <div className="text-green-500">↓</div>
             <div className="flex flex-wrap justify-center gap-3">
               <span className="px-4 py-2 rounded-xl bg-orange-900/20 border border-orange-700/30">🧠 Bedrock AI</span>
+              <span className="px-4 py-2 rounded-xl bg-red-900/20 border border-red-700/30">👁️ Rekognition</span>
               <span className="px-4 py-2 rounded-xl bg-yellow-900/20 border border-yellow-700/30">🔄 Translate</span>
+              <span className="px-4 py-2 rounded-xl bg-teal-900/20 border border-teal-700/30">🔊 Polly</span>
               <span className="px-4 py-2 rounded-xl bg-cyan-900/20 border border-cyan-700/30">🗄️ DynamoDB</span>
               <span className="px-4 py-2 rounded-xl bg-pink-900/20 border border-pink-700/30">📦 S3</span>
+              <span className="px-4 py-2 rounded-xl bg-indigo-900/20 border border-indigo-700/30">📊 CloudWatch</span>
             </div>
           </div>
         </div>
@@ -152,7 +155,7 @@ export default function About() {
           <h3 className="text-lg font-bold mb-2">AI for Bharat Hackathon 2026</h3>
           <p className="text-gray-400 text-sm mb-4">Track 03: AI for Rural Innovation & Sustainable Systems</p>
           <p className="text-gray-500 text-xs">
-            Built with Amazon Bedrock, Claude 3.5 Sonnet v2, S3, DynamoDB, Lambda, Translate, and Polly.
+            Built with Amazon Bedrock, Claude 3.5 Sonnet v2, Rekognition, S3, DynamoDB, Lambda, Translate, Polly, and CloudWatch.
           </p>
         </div>
       </div>

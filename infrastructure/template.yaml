@@ -1,0 +1,275 @@
+# ============================================================
+# FasalDrishti - AWS SAM Template (Infrastructure as Code)
+# ============================================================
+#
+# AWS Service: AWS CloudFormation / SAM (Serverless Application Model)
+# Why: Defines ALL AWS resources as code. One command deploys everything:
+#      Lambda function, API Gateway, DynamoDB tables, S3 bucket, IAM roles.
+#      Reproducible, version-controlled, and auditable infrastructure.
+#
+# To deploy:
+#   cd backend
+#   sam build
+#   sam deploy --guided --stack-name fasaldrishti
+#
+# This creates:
+#   - Lambda function running FastAPI (via Mangum)
+#   - HTTP API Gateway with /api/* routes
+#   - DynamoDB tables (scans + users)
+#   - S3 bucket for image storage + voice audio
+#   - IAM role with least-privilege permissions
+#   - CloudWatch log group with 30-day retention
+# ============================================================
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  FasalDrishti - AI Crop Disease Detection for Indian Farmers
+  Built for AI for Bharat Hackathon 2026 (Track 03: Rural Innovation)
+
+# ── PARAMETERS ──────────────────────────────────────────────
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, production]
+  
+  BedrockModelId:
+    Type: String
+    Default: apac.anthropic.claude-3-5-sonnet-20241022-v2:0
+    Description: Amazon Bedrock model ID for crop analysis
+
+  TwilioAccountSid:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Twilio Account SID for WhatsApp
+
+  TwilioAuthToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Twilio Auth Token
+
+  TwilioWhatsAppNumber:
+    Type: String
+    Default: "whatsapp:+14155238886"
+    Description: Twilio WhatsApp sandbox number
+
+# ── GLOBALS ─────────────────────────────────────────────────
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 1024
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        APP_ENV: !Ref Environment
+        AWS_REGION_NAME: !Ref AWS::Region
+        BEDROCK_MODEL_ID: !Ref BedrockModelId
+        S3_BUCKET_NAME: !Ref ImageBucket
+        DYNAMODB_TABLE_SCANS: !Ref ScansTable
+        DYNAMODB_TABLE_USERS: !Ref UsersTable
+        TWILIO_ACCOUNT_SID: !Ref TwilioAccountSid
+        TWILIO_AUTH_TOKEN: !Ref TwilioAuthToken
+        TWILIO_WHATSAPP_NUMBER: !Ref TwilioWhatsAppNumber
+
+# ── RESOURCES ───────────────────────────────────────────────
+Resources:
+
+  # ── Lambda Function ──
+  FasalDrishtiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: fasaldrishti-api
+      Handler: lambda_handler.handler
+      CodeUri: .
+      Description: FasalDrishti AI crop disease detection API
+      Events:
+        # Catch-all API route
+        ApiCatchAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FasalDrishtiApi
+            Path: /{proxy+}
+            Method: ANY
+        # Root route
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FasalDrishtiApi
+            Path: /
+            Method: ANY
+      Policies:
+        # Bedrock access for AI analysis
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+        # Rekognition access for fallback analysis
+        - Statement:
+            - Effect: Allow
+              Action:
+                - rekognition:DetectLabels
+                - rekognition:DetectText
+              Resource: "*"
+        # Translate access for multilingual support
+        - Statement:
+            - Effect: Allow
+              Action:
+                - translate:TranslateText
+              Resource: "*"
+        # Polly access for voice generation
+        - Statement:
+            - Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+                - polly:DescribeVoices
+              Resource: "*"
+        # S3 access for image + voice storage
+        - S3CrudPolicy:
+            BucketName: !Ref ImageBucket
+        # DynamoDB access for scan + user data
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScansTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        # CloudWatch Logs (auto-granted but explicit for clarity)
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+        # Comprehend for language detection
+        - ComprehendBasicAccessPolicy: {}
+
+  # ── HTTP API Gateway ──
+  FasalDrishtiApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - "*"
+
+  # ── DynamoDB: Scans Table ──
+  ScansTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: fasaldrishti-scans
+      BillingMode: PAY_PER_REQUEST   # Serverless — no capacity planning
+      AttributeDefinitions:
+        - AttributeName: scan_id
+          AttributeType: S
+        - AttributeName: phone_number
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: scan_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: phone-index
+          KeySchema:
+            - AttributeName: phone_number
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: FasalDrishti
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ── DynamoDB: Users Table ──
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: fasaldrishti-users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phone_number
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phone_number
+          KeyType: HASH
+      Tags:
+        - Key: Project
+          Value: FasalDrishti
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ── S3 Bucket: Image + Voice Storage ──
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "fasaldrishti-images-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldScans
+            Status: Enabled
+            ExpirationInDays: 90
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: [GET, PUT]
+            AllowedOrigins: ["*"]
+            MaxAge: 3600
+      Tags:
+        - Key: Project
+          Value: FasalDrishti
+
+  # ── CloudWatch Log Group ──
+  FasalDrishtiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/fasaldrishti-api"
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: FasalDrishti
+
+# ── OUTPUTS ─────────────────────────────────────────────────
+Outputs:
+  ApiUrl:
+    Description: FasalDrishti API endpoint URL
+    Value: !Sub "https://${FasalDrishtiApi}.execute-api.${AWS::Region}.amazonaws.com"
+  
+  FunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt FasalDrishtiFunction.Arn
+  
+  ScansTableName:
+    Description: DynamoDB Scans table name
+    Value: !Ref ScansTable
+  
+  UsersTableName:
+    Description: DynamoDB Users table name
+    Value: !Ref UsersTable
+  
+  ImageBucketName:
+    Description: S3 bucket for images and voice files
+    Value: !Ref ImageBucket
+  
+  ApiGatewayId:
+    Description: API Gateway ID
+    Value: !Ref FasalDrishtiApi

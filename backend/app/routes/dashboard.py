@@ -1,5 +1,6 @@
 """
 FasalDrishti - Dashboard Analytics Routes
+Powered by Amazon DynamoDB for persistent scan data.
 """
 
 import logging
@@ -9,7 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.routes.analyze import scan_history
+from app.services.dynamodb_service import get_scan_stats, get_recent_scans
 from app.data.disease_db import DISEASE_DATABASE, CROP_DISEASES, LANGUAGE_MAP
 
 logger = logging.getLogger("fasaldrishti.dashboard")
@@ -19,10 +20,38 @@ router = APIRouter()
 
 @router.get("/stats")
 async def get_dashboard_stats():
-    """Get dashboard statistics"""
-    total = len(scan_history)
-    
-    if total == 0:
+    """Get dashboard statistics from DynamoDB"""
+    try:
+        # Try DynamoDB first
+        db_stats = await get_scan_stats()
+        recent = await get_recent_scans(limit=10)
+
+        total = db_stats.get("total_scans", 0)
+
+        if total == 0:
+            return {
+                "total_scans": 0,
+                "diseases_detected": 0,
+                "crops_analyzed": 0,
+                "average_confidence": 0,
+                "top_diseases": [],
+                "severity_distribution": {"mild": 0, "moderate": 0, "severe": 0},
+                "crop_distribution": {},
+                "recent_scans": [],
+            }
+
+        return {
+            "total_scans": total,
+            "diseases_detected": db_stats.get("diseases_detected", 0),
+            "crops_analyzed": db_stats.get("crops_analyzed", 0),
+            "average_confidence": db_stats.get("average_confidence", 0),
+            "top_diseases": db_stats.get("top_diseases", []),
+            "severity_distribution": db_stats.get("severity_distribution", {"mild": 0, "moderate": 0, "severe": 0}),
+            "crop_distribution": db_stats.get("crop_distribution", {}),
+            "recent_scans": recent,
+        }
+    except Exception as e:
+        logger.warning(f"DynamoDB dashboard query failed: {e}")
         return {
             "total_scans": 0,
             "diseases_detected": 0,
@@ -32,35 +61,8 @@ async def get_dashboard_stats():
             "severity_distribution": {"mild": 0, "moderate": 0, "severe": 0},
             "crop_distribution": {},
             "recent_scans": [],
+            "note": "DynamoDB temporarily unavailable",
         }
-
-    # Calculate stats
-    disease_counter = Counter(s["disease_name"] for s in scan_history if s["disease_key"] != "healthy")
-    crop_counter = Counter(s["crop"] for s in scan_history)
-    severity_counter = Counter(s["severity"] for s in scan_history)
-    
-    avg_confidence = sum(s["confidence"] for s in scan_history) / total
-
-    top_diseases = [
-        {"name": name, "count": count}
-        for name, count in disease_counter.most_common(5)
-    ]
-
-    return {
-        "total_scans": total,
-        "diseases_detected": len(disease_counter),
-        "crops_analyzed": len(crop_counter),
-        "average_confidence": round(avg_confidence, 1),
-        "top_diseases": top_diseases,
-        "severity_distribution": {
-            "none": severity_counter.get("none", 0),
-            "mild": severity_counter.get("mild", 0),
-            "moderate": severity_counter.get("moderate", 0),
-            "severe": severity_counter.get("severe", 0),
-        },
-        "crop_distribution": dict(crop_counter),
-        "recent_scans": sorted(scan_history, key=lambda x: x["timestamp"], reverse=True)[:10],
-    }
 
 
 @router.get("/supported")

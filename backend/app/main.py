@@ -31,6 +31,29 @@ async def lifespan(app: FastAPI):
     logger.info(f"   Twilio SID set: {bool(settings.twilio_account_sid)}")
     logger.info(f"   Twilio SID value: {settings.twilio_account_sid[:8]}..." if settings.twilio_account_sid else "   Twilio SID value: EMPTY")
     logger.info(f"   Public URL: {settings.public_url or 'NOT SET'}")
+
+    # Initialize DynamoDB tables (creates if not exist)
+    try:
+        from app.services.dynamodb_service import ensure_tables_exist
+        table_status = await ensure_tables_exist()
+        logger.info(f"   DynamoDB tables: {table_status}")
+    except Exception as e:
+        logger.warning(f"   DynamoDB init skipped: {e}")
+
+    # Log startup to CloudWatch
+    try:
+        from app.services.cloudwatch_service import cloudwatch_logger
+        from app.services.ai_service import get_pipeline_status
+        pipeline = get_pipeline_status()
+        cloudwatch_logger.log_startup({
+            "dynamodb": "initialized",
+            "pipeline": pipeline.get("active_engine", "unknown"),
+            "region": settings.aws_region,
+        })
+        logger.info("   CloudWatch logging: active")
+    except Exception as e:
+        logger.warning(f"   CloudWatch init skipped: {e}")
+
     yield
     logger.info("🛑 FasalDrishti Backend Shutting Down...")
 

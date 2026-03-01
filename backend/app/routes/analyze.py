@@ -18,13 +18,12 @@ from app.services.ai_service import (
     get_all_diseases,
     get_supported_crops,
 )
+from app.services.dynamodb_service import save_scan, get_recent_scans
+from app.services.cloudwatch_service import cloudwatch_logger, publish_scan_metric
 
 logger = logging.getLogger("fasaldrishti.analyze")
 
 router = APIRouter()
-
-# In-memory store for scans (replace with DynamoDB in production)
-scan_history = []
 
 
 def _flatten_result(result: dict, scan_id: str) -> dict:
@@ -114,7 +113,7 @@ async def analyze_image(
         # Generate scan ID
         scan_id = str(uuid.uuid4())[:8]
 
-        # Store scan record
+        # Store scan record in DynamoDB (persistent)
         scan_record = {
             "scan_id": scan_id,
             "crop": result["analysis"]["crop"],
@@ -124,8 +123,38 @@ async def analyze_image(
             "confidence": result["analysis"]["confidence"],
             "timestamp": datetime.utcnow().isoformat(),
             "location": {"lat": latitude, "lng": longitude} if latitude else None,
+            "analysis_engine": result.get("metadata", {}).get("analysis_engine", "unknown"),
+            "language": language,
+            "source": "web",
         }
-        scan_history.append(scan_record)
+        try:
+            await save_scan(scan_record)
+        except Exception as db_err:
+            logger.warning(f"DynamoDB save failed (non-blocking): {db_err}")
+
+        # Publish metrics to CloudWatch
+        try:
+            latency = result.get("metadata", {}).get("pipeline_latency_ms", 0)
+            publish_scan_metric(
+                crop=scan_record["crop"],
+                disease=scan_record["disease_key"],
+                severity=scan_record["severity"],
+                latency_ms=latency,
+                analysis_method=scan_record.get("analysis_engine", "unknown"),
+                success=True,
+            )
+            cloudwatch_logger.log_scan(
+                scan_id=scan_id,
+                crop=scan_record["crop"],
+                disease=scan_record["disease_key"],
+                severity=scan_record["severity"],
+                confidence=scan_record["confidence"],
+                analysis_method=scan_record.get("analysis_engine", "unknown"),
+                latency_ms=latency,
+                language=language,
+            )
+        except Exception:
+            pass
 
         # Flatten response for frontend consumption
         analysis = result["analysis"]
@@ -176,8 +205,27 @@ async def analyze_base64(
             "severity": result["analysis"]["severity"],
             "confidence": result["analysis"]["confidence"],
             "timestamp": datetime.utcnow().isoformat(),
+            "analysis_engine": result.get("metadata", {}).get("analysis_engine", "unknown"),
+            "language": language,
+            "source": "api",
         }
-        scan_history.append(scan_record)
+        try:
+            await save_scan(scan_record)
+        except Exception as db_err:
+            logger.warning(f"DynamoDB save failed (non-blocking): {db_err}")
+
+        try:
+            latency = result.get("metadata", {}).get("pipeline_latency_ms", 0)
+            publish_scan_metric(
+                crop=scan_record["crop"],
+                disease=scan_record["disease_key"],
+                severity=scan_record["severity"],
+                latency_ms=latency,
+                analysis_method=scan_record.get("analysis_engine", "unknown"),
+                success=True,
+            )
+        except Exception:
+            pass
 
         flat_response = _flatten_result(result, scan_id)
         logger.info(
@@ -229,8 +277,17 @@ async def list_crops():
 
 @router.get("/scans")
 async def get_scan_history():
-    """Get recent scan history"""
-    return {
-        "total": len(scan_history),
-        "scans": sorted(scan_history, key=lambda x: x["timestamp"], reverse=True)[:50],
-    }
+    """Get recent scan history from DynamoDB"""
+    try:
+        scans = await get_recent_scans(limit=50)
+        return {
+            "total": len(scans),
+            "scans": scans,
+        }
+    except Exception as e:
+        logger.warning(f"DynamoDB scan fetch failed: {e}")
+        return {
+            "total": 0,
+            "scans": [],
+            "note": "DynamoDB temporarily unavailable",
+        }
