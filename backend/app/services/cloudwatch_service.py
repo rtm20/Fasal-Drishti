@@ -26,38 +26,37 @@ from typing import Optional
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
+from app.config import get_settings
+
 logger = logging.getLogger("fasaldrishti.cloudwatch")
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
-REGION = os.getenv("AWS_REGION", "ap-south-1")
+_settings = get_settings()
+REGION = _settings.aws_region or "ap-south-1"
 METRIC_NAMESPACE = "FasalDrishti"
 LOG_GROUP = "/fasaldrishti/application"
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = _settings.app_env if hasattr(_settings, 'app_env') else "development"
 
 
 def _get_cw_client():
     """Create CloudWatch client."""
     kwargs = {"region_name": REGION}
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if access_key:
-        kwargs["aws_access_key_id"] = access_key
-    if secret_key:
-        kwargs["aws_secret_access_key"] = secret_key
+    if _settings.aws_access_key_id:
+        kwargs["aws_access_key_id"] = _settings.aws_access_key_id
+    if _settings.aws_secret_access_key:
+        kwargs["aws_secret_access_key"] = _settings.aws_secret_access_key
     return boto3.client("cloudwatch", **kwargs)
 
 
 def _get_logs_client():
     """Create CloudWatch Logs client."""
     kwargs = {"region_name": REGION}
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if access_key:
-        kwargs["aws_access_key_id"] = access_key
-    if secret_key:
-        kwargs["aws_secret_access_key"] = secret_key
+    if _settings.aws_access_key_id:
+        kwargs["aws_access_key_id"] = _settings.aws_access_key_id
+    if _settings.aws_secret_access_key:
+        kwargs["aws_secret_access_key"] = _settings.aws_secret_access_key
     return boto3.client("logs", **kwargs)
 
 
@@ -376,7 +375,6 @@ def get_cloudwatch_status() -> dict:
         # Quick check — list metrics in our namespace
         response = cw.list_metrics(
             Namespace=METRIC_NAMESPACE,
-            Limit=1,
         )
         status["operational"] = True
         status["metric_count"] = len(response.get("Metrics", []))

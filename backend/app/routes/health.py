@@ -37,14 +37,14 @@ async def detailed_health_check():
     # 2. DynamoDB
     try:
         from app.services.dynamodb_service import get_dynamodb_status
-        services["dynamodb"] = await get_dynamodb_status()
+        services["dynamodb"] = get_dynamodb_status()
     except Exception as e:
         services["dynamodb"] = {"operational": False, "error": str(e)}
 
     # 3. Polly
     try:
         from app.services.polly_service import get_polly_status
-        services["polly"] = await get_polly_status()
+        services["polly"] = get_polly_status()
     except Exception as e:
         services["polly"] = {"operational": False, "error": str(e)}
 

@@ -195,26 +195,18 @@ def _convert_floats(obj):
 
 
 async def save_scan(
-    scan_id: str,
-    phone_number: str,
-    analysis_result: dict,
+    scan_data: dict = None,
+    *,
+    scan_id: str = None,
+    phone_number: str = None,
+    analysis_result: dict = None,
 ) -> bool:
     """
     Save a scan record to DynamoDB fasaldrishti-scans table.
     
-    Item schema:
-      scan_id (PK)     — unique scan identifier
-      phone_number     — user's WhatsApp number (GSI hash key)
-      timestamp        — ISO 8601 UTC (GSI range key)
-      crop             — detected crop name
-      disease_key      — disease identifier
-      disease_name     — human-readable disease name
-      severity         — none/mild/moderate/severe
-      confidence       — AI confidence score (0-100)
-      analysis_engine  — bedrock/rekognition/fallback_demo
-      language         — user's language preference
-      full_result      — complete analysis result JSON
-      ttl              — auto-expire after 90 days (optional)
+    Accepts either:
+      - A single dict with all fields (from analyze.py / whatsapp.py)
+      - Keyword arguments scan_id, phone_number, analysis_result
     """
     try:
         dynamo = _get_dynamodb_resource()
@@ -223,31 +215,49 @@ async def save_scan(
 
         table = dynamo.Table(settings.dynamodb_table_scans)
         
-        analysis = analysis_result.get("analysis", {})
-        metadata = analysis_result.get("metadata", {})
-        
         now = datetime.now(timezone.utc)
         
-        item = {
-            "scan_id": scan_id,
-            "phone_number": phone_number or "web",
-            "timestamp": now.isoformat(),
-            "date": now.strftime("%Y-%m-%d"),
-            "crop": analysis.get("crop", "unknown"),
-            "disease_key": analysis.get("disease_key", "unknown"),
-            "disease_name": analysis.get("disease_name", "Unknown"),
-            "severity": analysis.get("severity", "unknown"),
-            "confidence": int(analysis.get("confidence", 0)),
-            "is_healthy": analysis.get("is_healthy", False),
-            "analysis_engine": metadata.get("analysis_engine", "unknown"),
-            "pipeline_latency_ms": int(metadata.get("pipeline_latency_ms", 0)),
-            "full_result": _convert_floats(analysis_result),
-            # TTL: auto-delete after 90 days (DynamoDB TTL feature)
-            "ttl": int(time.time()) + (90 * 24 * 60 * 60),
-        }
+        if scan_data and isinstance(scan_data, dict):
+            # Called with a pre-built dict (analyze.py / whatsapp.py style)
+            item = {
+                "scan_id": scan_data.get("scan_id", str(uuid.uuid4())[:8]),
+                "phone_number": scan_data.get("phone_number", "web"),
+                "timestamp": scan_data.get("timestamp", now.isoformat()),
+                "date": now.strftime("%Y-%m-%d"),
+                "crop": scan_data.get("crop", "unknown"),
+                "disease_key": scan_data.get("disease_key", "unknown"),
+                "disease_name": scan_data.get("disease_name", "Unknown"),
+                "severity": scan_data.get("severity", "unknown"),
+                "confidence": int(scan_data.get("confidence", 0)),
+                "is_healthy": scan_data.get("is_healthy", False),
+                "analysis_engine": scan_data.get("analysis_engine", "unknown"),
+                "language": scan_data.get("language", "en"),
+                "source": scan_data.get("source", "unknown"),
+                "ttl": int(time.time()) + (90 * 24 * 60 * 60),
+            }
+        else:
+            # Called with keyword arguments (structured style)
+            analysis = (analysis_result or {}).get("analysis", {})
+            metadata = (analysis_result or {}).get("metadata", {})
+            item = {
+                "scan_id": scan_id or str(uuid.uuid4())[:8],
+                "phone_number": phone_number or "web",
+                "timestamp": now.isoformat(),
+                "date": now.strftime("%Y-%m-%d"),
+                "crop": analysis.get("crop", "unknown"),
+                "disease_key": analysis.get("disease_key", "unknown"),
+                "disease_name": analysis.get("disease_name", "Unknown"),
+                "severity": analysis.get("severity", "unknown"),
+                "confidence": int(analysis.get("confidence", 0)),
+                "is_healthy": analysis.get("is_healthy", False),
+                "analysis_engine": metadata.get("analysis_engine", "unknown"),
+                "pipeline_latency_ms": int(metadata.get("pipeline_latency_ms", 0)),
+                "full_result": _convert_floats(analysis_result or {}),
+                "ttl": int(time.time()) + (90 * 24 * 60 * 60),
+            }
         
         table.put_item(Item=item)
-        logger.info(f"Scan {scan_id} saved to DynamoDB")
+        logger.info(f"Scan {item['scan_id']} saved to DynamoDB")
         return True
         
     except Exception as e:

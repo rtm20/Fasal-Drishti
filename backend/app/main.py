@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     # Initialize DynamoDB tables (creates if not exist)
     try:
         from app.services.dynamodb_service import ensure_tables_exist
-        table_status = await ensure_tables_exist()
+        table_status = ensure_tables_exist()  # sync function, no await
         logger.info(f"   DynamoDB tables: {table_status}")
     except Exception as e:
         logger.warning(f"   DynamoDB init skipped: {e}")

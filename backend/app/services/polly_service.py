@@ -244,7 +244,7 @@ async def generate_voice_advisory(
         return None
 
 
-async def upload_voice_to_s3(audio_bytes: bytes, scan_id: str) -> Optional[str]:
+async def upload_voice_to_s3(audio_bytes: bytes, scan_id: str, language: str = "hi") -> Optional[str]:
     """
     Upload the voice MP3 to S3 and return a pre-signed URL.
     The URL can be sent via WhatsApp as a media message.
