@@ -50,18 +50,18 @@ def _flatten_result(result: dict, scan_id: str) -> dict:
         "description_hindi": analysis.get("description_hindi", ""),
         # Symptoms
         "symptoms": analysis.get("symptoms_observed", analysis.get("all_symptoms", [])),
-        # Treatments (flatten chemical treatments)
+        # Treatments (flatten chemical treatments — use translated fields when available)
         "treatments": [
             {
-                "name": t["name"],
-                "dosage": t.get("dosage", ""),
-                "application": t.get("method", t.get("frequency", "")),
+                "name": t.get("name_translated", t["name"]),
+                "dosage": t.get("dosage_translated", t.get("dosage", "")),
+                "application": t.get("method_translated", t.get("method", t.get("frequency", ""))),
                 "cost": f"\u20b9{t['cost_per_acre']}/acre" if t.get("cost_per_acre") else "",
             }
             for t in treatment.get("chemical", [])
         ],
-        "organic_treatments": treatment.get("organic", []),
-        "prevention": treatment.get("prevention", []),
+        "organic_treatments": treatment.get("organic_translated", treatment.get("organic", [])),
+        "prevention": treatment.get("prevention_translated", treatment.get("prevention", [])),
         # Metadata
         "favorable_conditions": metadata.get("favorable_conditions", ""),
         "analysis_engine": metadata.get("analysis_engine", "fallback_demo"),

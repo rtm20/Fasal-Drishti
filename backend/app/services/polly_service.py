@@ -71,6 +71,8 @@ POLLY_VOICES = {
     "bn": {"VoiceId": "Kajal", "LanguageCode": "en-IN", "Engine": "neural"},  # Bengali → English voice
     "gu": {"VoiceId": "Kajal", "LanguageCode": "hi-IN", "Engine": "neural"},  # Gujarati → Hindi voice
     "pa": {"VoiceId": "Kajal", "LanguageCode": "hi-IN", "Engine": "neural"},  # Punjabi → Hindi voice
+    "ml": {"VoiceId": "Kajal", "LanguageCode": "en-IN", "Engine": "neural"},  # Malayalam → English voice
+    "or": {"VoiceId": "Kajal", "LanguageCode": "en-IN", "Engine": "neural"},  # Odia → English voice
 }
 
 # Fallback voice if language not in mapping
@@ -97,8 +99,11 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
     is_healthy = analysis.get("is_healthy", False)
     description = analysis.get("description_translated", analysis.get("description", ""))
     
-    if language == "hi":
-        # Hindi speech
+    # Hindi-belt languages (mr, gu, pa) — these farmers generally understand spoken Hindi
+    hindi_belt = {"hi", "mr", "gu", "pa"}
+
+    if language in hindi_belt:
+        # Hindi speech for Hindi-belt languages
         if is_healthy:
             speech = (
                 f"नमस्ते किसान भाई। फसल दृष्टि का विश्लेषण पूरा हुआ। "
@@ -112,22 +117,24 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
                 f"आपकी {crop} की फसल में {hindi_name or disease_name} बीमारी पाई गई है। "
                 f"गंभीरता का स्तर {severity} है। "
             )
-            # Add first chemical treatment
+            # Add first chemical treatment (use translated if available)
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
+                t_name = first.get("name_translated", first.get("name", ""))
+                t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f"इलाज: {first.get('name', '')} का प्रयोग करें। "
-                    f"मात्रा: {first.get('dosage', '')}। "
+                    f"इलाज: {t_name} का प्रयोग करें। "
+                    f"मात्रा: {t_dosage}। "
                 )
-            # Add first organic treatment
-            organics = treatment.get("organic", [])
+            # Add first organic treatment (use translated list if available)
+            organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
                 speech += f"जैविक उपचार: {organics[0]}। "
             
             speech += "कृपया जल्द से जल्द उपचार शुरू करें।"
     else:
-        # English speech (default for all other languages)
+        # English speech (default for en, ta, te, kn, bn, ml, or)
         if is_healthy:
             speech = (
                 f"Hello farmer. FasalDrishti analysis is complete. "
@@ -145,11 +152,13 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
+                t_name = first.get("name_translated", first.get("name", ""))
+                t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f"Recommended treatment: {first.get('name', '')}. "
-                    f"Dosage: {first.get('dosage', '')}. "
+                    f"Recommended treatment: {t_name}. "
+                    f"Dosage: {t_dosage}. "
                 )
-            organics = treatment.get("organic", [])
+            organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
                 speech += f"Organic alternative: {organics[0]}. "
             

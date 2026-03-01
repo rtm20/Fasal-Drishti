@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = ""
 
     # Bedrock
-    bedrock_model_id: str = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
+    bedrock_model_id: str = "global.anthropic.claude-sonnet-4-6"
     aws_bearer_token_bedrock: str = ""
 
     # S3

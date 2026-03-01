@@ -777,27 +777,70 @@ async def analyze_crop_image(
     }
 
     # ── Stage 5: Translation ───────────────────────────────
-    if language != "en" and language in ["hi", "ta", "te", "kn", "mr", "bn", "gu", "pa"]:
+    # Translate ALL user-facing text to the chosen language
+    TRANSLATABLE_LANGS = ["hi", "ta", "te", "kn", "mr", "bn", "gu", "pa", "ml", "or"]
+    if language != "en" and language in TRANSLATABLE_LANGS:
         try:
             if language == "hi":
                 # Hindi descriptions are pre-stored in the DB
                 response["analysis"]["description_translated"] = disease_info.get(
                     "description_hindi", response["analysis"]["description"]
                 )
+                # Hindi treatment data is in English DB — translate key fields
+                for i, t in enumerate(response["treatment"]["chemical"]):
+                    try:
+                        response["treatment"]["chemical"][i]["name_translated"] = await translate_text(t.get("name", ""), "hi")
+                        response["treatment"]["chemical"][i]["dosage_translated"] = await translate_text(t.get("dosage", ""), "hi")
+                        response["treatment"]["chemical"][i]["method_translated"] = await translate_text(t.get("method", ""), "hi")
+                    except Exception:
+                        pass
+                # Translate organic treatments
+                translated_organic = []
+                for item in response["treatment"].get("organic", []):
+                    try:
+                        translated_organic.append(await translate_text(item, "hi"))
+                    except Exception:
+                        translated_organic.append(item)
+                response["treatment"]["organic_translated"] = translated_organic
+                # Translate prevention tips
+                translated_prevention = []
+                for item in response["treatment"].get("prevention", []):
+                    try:
+                        translated_prevention.append(await translate_text(item, "hi"))
+                    except Exception:
+                        translated_prevention.append(item)
+                response["treatment"]["prevention_translated"] = translated_prevention
             else:
-                # Use Amazon Translate for other languages
+                # Use Amazon Translate for all other Indian languages
                 translated = await translate_text(
                     disease_info.get("description", ""), language
                 )
                 response["analysis"]["description_translated"] = translated
 
-                # Also translate treatment names for non-Hindi
+                # Translate ALL treatment fields
                 for i, t in enumerate(response["treatment"]["chemical"]):
                     try:
-                        translated_method = await translate_text(t.get("method", ""), language)
-                        response["treatment"]["chemical"][i]["method_translated"] = translated_method
+                        response["treatment"]["chemical"][i]["name_translated"] = await translate_text(t.get("name", ""), language)
+                        response["treatment"]["chemical"][i]["dosage_translated"] = await translate_text(t.get("dosage", ""), language)
+                        response["treatment"]["chemical"][i]["method_translated"] = await translate_text(t.get("method", ""), language)
                     except Exception:
                         pass
+                # Translate organic treatments
+                translated_organic = []
+                for item in response["treatment"].get("organic", []):
+                    try:
+                        translated_organic.append(await translate_text(item, language))
+                    except Exception:
+                        translated_organic.append(item)
+                response["treatment"]["organic_translated"] = translated_organic
+                # Translate prevention tips
+                translated_prevention = []
+                for item in response["treatment"].get("prevention", []):
+                    try:
+                        translated_prevention.append(await translate_text(item, language))
+                    except Exception:
+                        translated_prevention.append(item)
+                response["treatment"]["prevention_translated"] = translated_prevention
         except Exception as e:
             logger.warning(f"Translation stage failed: {e}")
 
