@@ -519,9 +519,13 @@ def get_i18n(lang: str) -> dict:
     return I18N.get(lang, I18N["en"])
 
 
-def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
+async def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     """
     Format analysis result as a multilingual WhatsApp message.
+    
+    All dynamic content (crop names, status labels, descriptions, treatments)
+    is translated at runtime using Amazon Translate → Bedrock fallback.
+    No hardcoded translations — scales to any language.
     
     Structure:
     1. Header
@@ -529,18 +533,18 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     3. If HEALTHY → positive message, basic care tips
     4. If DISEASED → full detailed diagnosis + treatment
     """
+    from app.services.ai_service import translate_text
+
     analysis = result["analysis"]
     treatment = result["treatment"]
     t = get_i18n(lang)
     is_healthy = analysis.get("is_healthy", False)
 
-    # --- Crop name display ---
+    # --- Crop name display: translate at runtime ---
     crop_name = analysis.get("crop", "unknown").capitalize()
-    crop_hindi = analysis.get("crop_hindi", "")
-    if lang == "hi" and crop_hindi:
-        crop_display = f"{crop_hindi} ({crop_name})"
-    elif lang != "en" and crop_hindi:
-        crop_display = f"{crop_name} ({crop_hindi})"
+    if lang != "en":
+        translated_crop = await translate_text(crop_name, lang)
+        crop_display = f"{translated_crop} ({crop_name})"
     else:
         crop_display = crop_name
 
@@ -553,9 +557,11 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     # HEALTHY CROP — short positive message
     # ============================================================
     if is_healthy:
+        # Translate "Healthy" label at runtime
+        healthy_label = await translate_text("Healthy", lang) if lang != "en" else "HEALTHY"
         msg += f"""
 
-🟢 {t['status']} *HEALTHY / स्वस्थ*
+🟢 {t['status']} *{healthy_label}*
 {t['confidence']} {analysis.get('confidence', 90)}%
 
 {t['healthy_msg']}
@@ -578,7 +584,7 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     }
     emoji = severity_emoji.get(analysis["severity"], "⚪")
 
-    # Use translated description if available, else Hindi, else English
+    # Use translated description if available, else English
     description = (
         analysis.get("description_translated")
         or analysis.get("description_hindi")
@@ -586,25 +592,25 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     )
     if lang == "en":
         description = analysis.get("description", "")
-    elif lang == "hi":
-        description = analysis.get("description_hindi", analysis.get("description", ""))
 
-    # Disease name: for Hindi show hindi_name, for English show disease_name, others show both
-    if lang == "hi":
-        disease_display = f"{analysis.get('hindi_name', analysis['disease_name'])}"
-        disease_sub = f"  _{analysis['disease_name']}_"
-    elif lang == "en":
-        disease_display = f"{analysis['disease_name']}"
-        disease_sub = f"  _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
+    # Translate disease name and severity at runtime
+    disease_name_en = analysis.get("disease_name", "Unknown")
+    severity_en = analysis.get("severity", "moderate")
+    if lang != "en":
+        disease_display = await translate_text(disease_name_en, lang)
+        disease_sub = f"  _{disease_name_en}_"
+        severity_label = await translate_text(severity_en, lang)
     else:
-        disease_display = f"{analysis['disease_name']}"
-        disease_sub = f"  _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
+        disease_display = disease_name_en
+        hindi_name = analysis.get("hindi_name", "")
+        disease_sub = f"  _{hindi_name}_" if hindi_name else ""
+        severity_label = severity_en.upper()
 
     msg += f"""
 
 {t['disease']} {disease_display}
 {disease_sub}
-{emoji} {t['severity']} {analysis['severity'].upper()}
+{emoji} {t['severity']} {severity_label}
 {t['confidence']} {analysis['confidence']}%
 
 {t['description']}
@@ -760,7 +766,7 @@ async def _handle_meta_webhook(request: Request):
 
             if image_base64:
                 result = await analyze_crop_image(image_base64, "image/jpeg", user_lang, from_number)
-                response_text = format_whatsapp_response(result, user_lang)
+                response_text = await format_whatsapp_response(result, user_lang)
                 await send_meta_message(from_number, response_text)
 
                 # Save scan to DynamoDB + CloudWatch
@@ -941,7 +947,7 @@ async def _handle_twilio_webhook(request: Request):
 
             if image_base64:
                 result = await analyze_crop_image(image_base64, media_type, user_lang, from_number)
-                response_text = format_whatsapp_response(result, user_lang)
+                response_text = await format_whatsapp_response(result, user_lang)
 
                 # Schedule background tasks (DynamoDB, CloudWatch, Polly)
                 # These run AFTER the TwiML response is returned to Twilio
@@ -1186,7 +1192,7 @@ async def simulate_whatsapp(request: Request):
             image_base64 = body.get("image_base64", "")
             if image_base64:
                 result = await analyze_crop_image(image_base64, "image/jpeg", lang, "simulate")
-                response = format_whatsapp_response(result, lang)
+                response = await format_whatsapp_response(result, lang)
                 return {"status": "ok", "response": response, "analysis": result}
             return {"status": "error", "detail": "No image_base64 provided"}
 

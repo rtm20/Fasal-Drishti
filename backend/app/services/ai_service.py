@@ -582,25 +582,124 @@ def fallback_analysis(image_base64: str = None) -> dict:
 
 
 # ============================================================
-# STAGE 3: AMAZON TRANSLATE
+# STAGE 3: AMAZON TRANSLATE (with Bedrock fallback)
 # ============================================================
 
+# Language code → full name mapping for Bedrock translation prompts
+_LANG_NAMES = {
+    "hi": "Hindi", "en": "English", "mr": "Marathi", "ta": "Tamil",
+    "te": "Telugu", "kn": "Kannada", "bn": "Bengali", "gu": "Gujarati",
+    "pa": "Punjabi", "ml": "Malayalam", "or": "Odia",
+}
+
+
+async def _invoke_bedrock_text_converse(prompt: str, max_tokens: int = 300) -> Optional[str]:
+    """
+    Call Bedrock Converse API with a TEXT-ONLY prompt (no image).
+    Used for translation, speech generation, etc.
+    Returns the assistant's text response or None on failure.
+    """
+    bearer_token = settings.aws_bearer_token_bedrock
+    if not bearer_token:
+        return None
+
+    import urllib.request
+    import urllib.error
+    import urllib.parse
+
+    model_id = settings.bedrock_model_id
+    region = getattr(settings, "bedrock_region", "us-east-1")
+    encoded_model = urllib.parse.quote(model_id, safe="")
+
+    url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{encoded_model}/converse"
+
+    headers = {
+        "Authorization": f"Bearer {bearer_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"text": prompt}],
+            }
+        ],
+        "inferenceConfig": {"maxTokens": max_tokens, "temperature": 0.1},
+    }
+
+    body_bytes = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            response_body = json.loads(resp.read())
+            # Extract text from Converse API response
+            output = response_body.get("output", {})
+            message = output.get("message", {})
+            contents = message.get("content", [])
+            for block in contents:
+                if "text" in block:
+                    return block["text"].strip()
+            return None
+    except Exception as e:
+        logger.warning(f"Bedrock text converse failed: {e}")
+        return None
+
+
+async def translate_via_bedrock(text: str, target_lang: str) -> Optional[str]:
+    """
+    Translate text using Amazon Bedrock (Nova Lite) as a fallback
+    when Amazon Translate is not available.
+    """
+    lang_name = _LANG_NAMES.get(target_lang, target_lang)
+    prompt = (
+        f"Translate the following English text to {lang_name}. "
+        f"Return ONLY the translated text, nothing else. No explanations, no quotes.\n\n"
+        f"{text}"
+    )
+    result = await _invoke_bedrock_text_converse(prompt, max_tokens=500)
+    if result and result != text:
+        return result
+    return None
+
+
 async def translate_text(text: str, target_lang: str = "hi") -> str:
-    """Translate text using Amazon Translate."""
+    """
+    Translate text using Amazon Translate, with Bedrock as fallback.
+
+    Fallback chain:
+      1. Amazon Translate (fast, purpose-built)
+      2. Amazon Bedrock Nova Lite (if Translate is unavailable/unsubscribed)
+      3. Return original text (last resort)
+    """
+    if not text or not text.strip():
+        return text
+
+    # --- Try Amazon Translate first ---
     try:
         client = get_translate_client()
-        if not client:
-            return text
-
-        result = client.translate_text(
-            Text=text[:5000],  # Translate API max 5000 chars
-            SourceLanguageCode="en",
-            TargetLanguageCode=target_lang,
-        )
-        return result["TranslatedText"]
+        if client:
+            result = client.translate_text(
+                Text=text[:5000],
+                SourceLanguageCode="en",
+                TargetLanguageCode=target_lang,
+            )
+            return result["TranslatedText"]
     except Exception as e:
-        logger.warning(f"Translation failed ({target_lang}): {e}")
-        return text
+        logger.warning(f"Amazon Translate failed ({target_lang}): {e}")
+
+    # --- Fallback: Bedrock translation ---
+    try:
+        bedrock_result = await translate_via_bedrock(text, target_lang)
+        if bedrock_result:
+            logger.info(f"Bedrock translation succeeded for {target_lang}")
+            return bedrock_result
+    except Exception as e:
+        logger.warning(f"Bedrock translation also failed ({target_lang}): {e}")
+
+    return text
 
 
 async def translate_fields(fields: dict[str, str], target_lang: str) -> dict[str, str]:
@@ -778,71 +877,54 @@ async def analyze_crop_image(
         },
     }
 
+    # Force-correct values when plant is healthy
+    if disease_key == "healthy":
+        response["analysis"]["is_healthy"] = True
+        response["analysis"]["severity"] = "none"
+        response["analysis"]["immediate_action_needed"] = False
+        response["analysis"]["affected_area_percent"] = 0
+        response["analysis"]["spread_risk"] = "none"
+        # Clear the generic "सामान्य" crop_hindi — whatsapp.py will translate the actual crop name at runtime
+        response["analysis"]["crop_hindi"] = ""
+
     # ── Stage 5: Translation ───────────────────────────────
-    # Translate ALL user-facing text to the chosen language
+    # Translate ALL user-facing text to the chosen language via translate_text()
+    # (translate_text has Bedrock fallback, so this works even if Amazon Translate is unsubscribed)
     TRANSLATABLE_LANGS = ["hi", "ta", "te", "kn", "mr", "bn", "gu", "pa", "ml", "or"]
     if language != "en" and language in TRANSLATABLE_LANGS:
         try:
-            if language == "hi":
-                # Hindi descriptions are pre-stored in the DB
-                response["analysis"]["description_translated"] = disease_info.get(
-                    "description_hindi", response["analysis"]["description"]
-                )
-                # Hindi treatment data is in English DB — translate key fields
-                for i, t in enumerate(response["treatment"]["chemical"]):
-                    try:
-                        response["treatment"]["chemical"][i]["name_translated"] = await translate_text(t.get("name", ""), "hi")
-                        response["treatment"]["chemical"][i]["dosage_translated"] = await translate_text(t.get("dosage", ""), "hi")
-                        response["treatment"]["chemical"][i]["method_translated"] = await translate_text(t.get("method", ""), "hi")
-                    except Exception:
-                        pass
-                # Translate organic treatments
-                translated_organic = []
-                for item in response["treatment"].get("organic", []):
-                    try:
-                        translated_organic.append(await translate_text(item, "hi"))
-                    except Exception:
-                        translated_organic.append(item)
-                response["treatment"]["organic_translated"] = translated_organic
-                # Translate prevention tips
-                translated_prevention = []
-                for item in response["treatment"].get("prevention", []):
-                    try:
-                        translated_prevention.append(await translate_text(item, "hi"))
-                    except Exception:
-                        translated_prevention.append(item)
-                response["treatment"]["prevention_translated"] = translated_prevention
-            else:
-                # Use Amazon Translate for all other Indian languages
-                translated = await translate_text(
-                    disease_info.get("description", ""), language
-                )
-                response["analysis"]["description_translated"] = translated
+            # Translate description
+            response["analysis"]["description_translated"] = await translate_text(
+                disease_info.get("description", ""), language
+            )
 
-                # Translate ALL treatment fields
-                for i, t in enumerate(response["treatment"]["chemical"]):
-                    try:
-                        response["treatment"]["chemical"][i]["name_translated"] = await translate_text(t.get("name", ""), language)
-                        response["treatment"]["chemical"][i]["dosage_translated"] = await translate_text(t.get("dosage", ""), language)
-                        response["treatment"]["chemical"][i]["method_translated"] = await translate_text(t.get("method", ""), language)
-                    except Exception:
-                        pass
-                # Translate organic treatments
-                translated_organic = []
-                for item in response["treatment"].get("organic", []):
-                    try:
-                        translated_organic.append(await translate_text(item, language))
-                    except Exception:
-                        translated_organic.append(item)
-                response["treatment"]["organic_translated"] = translated_organic
-                # Translate prevention tips
-                translated_prevention = []
-                for item in response["treatment"].get("prevention", []):
-                    try:
-                        translated_prevention.append(await translate_text(item, language))
-                    except Exception:
-                        translated_prevention.append(item)
-                response["treatment"]["prevention_translated"] = translated_prevention
+            # Translate chemical treatment fields
+            for i, t in enumerate(response["treatment"]["chemical"]):
+                try:
+                    response["treatment"]["chemical"][i]["name_translated"] = await translate_text(t.get("name", ""), language)
+                    response["treatment"]["chemical"][i]["dosage_translated"] = await translate_text(t.get("dosage", ""), language)
+                    response["treatment"]["chemical"][i]["method_translated"] = await translate_text(t.get("method", ""), language)
+                except Exception:
+                    pass
+
+            # Translate organic treatments
+            translated_organic = []
+            for item in response["treatment"].get("organic", []):
+                try:
+                    translated_organic.append(await translate_text(item, language))
+                except Exception:
+                    translated_organic.append(item)
+            response["treatment"]["organic_translated"] = translated_organic
+
+            # Translate prevention tips
+            translated_prevention = []
+            for item in response["treatment"].get("prevention", []):
+                try:
+                    translated_prevention.append(await translate_text(item, language))
+                except Exception:
+                    translated_prevention.append(item)
+            response["treatment"]["prevention_translated"] = translated_prevention
+
         except Exception as e:
             logger.warning(f"Translation stage failed: {e}")
 

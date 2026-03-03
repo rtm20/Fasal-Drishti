@@ -83,115 +83,111 @@ DEFAULT_VOICE = {"VoiceId": "Kajal", "LanguageCode": "en-IN", "Engine": "neural"
 # TEXT-TO-SPEECH SYNTHESIS
 # ============================================================
 
-def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> str:
+async def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> str:
     """
-    Convert the structured analysis result into a SHORT, warm, buddy-like
-    voice advisory.  This is NOT a verbatim read-out of the text message —
-    it is a concise spoken summary that sounds like a knowledgeable friend
-    giving quick advice in the field.
+    Generate a SHORT, warm, buddy-like voice advisory using Amazon Bedrock.
+    
+    NO hardcoded translations — Bedrock generates the speech script at runtime
+    in the user's chosen language. This scales to any language without
+    maintaining translation dictionaries.
 
     Design principles:
       • Keep it under ~30 seconds of speech (~120 words)
-      • Conversational tone — like a fellow farmer or agronomist friend
-      • Lead with crop identification
-      • Healthy → quick cheer + encouragement (5-10 sec)
-      • Diseased → name the problem, one key action, one organic tip (~25 sec)
-      • Use SSML <break> and <s> for natural pauses (neural voices
-        do NOT support <emphasis> or <prosody>)
+      • Gender-neutral greeting (no भाई/bhai)
+      • Fully in the target language — no English mixing
+      • Conversational tone — like a knowledgeable farmer friend
+      • Use SSML <break> and <s> tags for natural pauses
     """
+    from app.services.ai_service import _invoke_bedrock_text_converse, _LANG_NAMES
+
     analysis = analysis_result.get("analysis", {})
     treatment = analysis_result.get("treatment", {})
 
     crop = analysis.get("crop", "crop").capitalize()
-    crop_hindi = analysis.get("crop_hindi", "")
     disease_name = analysis.get("disease_name", "Unknown")
     hindi_name = analysis.get("hindi_name", "")
     severity = analysis.get("severity", "moderate")
     is_healthy = analysis.get("is_healthy", False)
 
-    # Hindi-belt languages
-    hindi_belt = {"hi", "mr", "gu", "pa"}
+    lang_name = _LANG_NAMES.get(language, "Hindi")
 
-    severity_hi = {"mild": "हल्की", "moderate": "मध्यम", "severe": "गंभीर", "none": "कोई नहीं"}
-    severity_en = {"mild": "mild", "moderate": "moderate", "severe": "serious", "none": "none"}
-
-    if language in hindi_belt:
-        crop_display = crop_hindi if crop_hindi else crop
-
-        if is_healthy:
-            speech = (
-                f'<speak>'
-                f'<s>नमस्ते भाई!</s> <break time="300ms"/>'
-                f'<s>ये तो {crop_display} की फसल है, और सुनो, बिल्कुल स्वस्थ है!</s> <break time="400ms"/>'
-                f'<s>कोई बीमारी नहीं है।</s> <break time="200ms"/>'
-                f'<s>बहुत बढ़िया काम कर रहे हो! ऐसे ही देखभाल करते रहो।</s>'
-                f'</speak>'
-            )
-        else:
-            sev_word = severity_hi.get(severity, severity)
-            speech = (
-                f'<speak>'
-                f'<s>नमस्ते भाई!</s> <break time="300ms"/>'
-                f'<s>ये {crop_display} की फसल है।</s> <break time="200ms"/>'
-                f'<s>देखो, इसमें {hindi_name or disease_name} की समस्या दिख रही है।</s> <break time="200ms"/>'
-                f'<s>स्थिति {sev_word} है, तो थोड़ा ध्यान देना ज़रूरी है।</s> <break time="400ms"/>'
-            )
-            chemicals = treatment.get("chemical", [])
-            if chemicals:
-                first = chemicals[0]
-                t_name = first.get("name_translated", first.get("name", ""))
-                t_dosage = first.get("dosage_translated", first.get("dosage", ""))
-                speech += (
-                    f'<s>सबसे पहले, {t_name} लगाओ, {t_dosage}।</s> <break time="300ms"/>'
-                )
-            organics = treatment.get("organic_translated", treatment.get("organic", []))
-            if organics:
-                speech += f'<s>और हाँ, देसी उपाय, {organics[0]}।</s> <break time="300ms"/>'
-
-            speech += (
-                f'<s>जितनी जल्दी हो सके शुरू कर दो भाई।</s> <break time="200ms"/>'
-                f'<s>बाक़ी पूरी जानकारी मैसेज में भेज दी है, वो पढ़ लेना।</s>'
-                f'</speak>'
-            )
+    # Build context for Bedrock
+    if is_healthy:
+        diagnosis_context = f"Crop: {crop}. Status: HEALTHY. No disease detected."
     else:
-        # English speech (for en, ta, te, kn, bn, ml, or)
-        if is_healthy:
-            speech = (
-                f'<speak>'
-                f'<s>Hey there!</s> <break time="300ms"/>'
-                f'<s>So I checked your {crop} crop, and guess what, it looks perfectly healthy!</s> <break time="400ms"/>'
-                f'<s>No disease at all.</s> <break time="200ms"/>'
-                f'<s>You are doing a great job! Just keep doing what you are doing.</s>'
-                f'</speak>'
-            )
-        else:
-            sev_word = severity_en.get(severity, severity)
-            speech = (
-                f'<speak>'
-                f'<s>Hey!</s> <break time="300ms"/>'
-                f'<s>So this is your {crop} crop.</s> <break time="200ms"/>'
-                f'<s>I found {disease_name} here.</s> <break time="200ms"/>'
-                f'<s>The condition looks {sev_word}, so let us act quickly.</s> <break time="400ms"/>'
-            )
-            chemicals = treatment.get("chemical", [])
-            if chemicals:
-                first = chemicals[0]
-                t_name = first.get("name_translated", first.get("name", ""))
-                t_dosage = first.get("dosage_translated", first.get("dosage", ""))
-                speech += (
-                    f'<s>First thing, apply {t_name}, {t_dosage}.</s> <break time="300ms"/>'
-                )
-            organics = treatment.get("organic_translated", treatment.get("organic", []))
-            if organics:
-                speech += f'<s>For a natural option, try {organics[0]}.</s> <break time="300ms"/>'
+        first_treatment = ""
+        chemicals = treatment.get("chemical", [])
+        if chemicals:
+            first_treatment = f"Treatment: {chemicals[0].get('name', '')} — {chemicals[0].get('dosage', '')}."
+        organic_tip = ""
+        organics = treatment.get("organic", [])
+        if organics:
+            organic_tip = f"Organic option: {organics[0]}."
+        diagnosis_context = (
+            f"Crop: {crop}. Disease: {disease_name} ({hindi_name}). "
+            f"Severity: {severity}. {first_treatment} {organic_tip}"
+        )
 
-            speech += (
-                f'<s>Start as soon as you can.</s> <break time="200ms"/>'
-                f'<s>I have sent you all the details in the text message, check that out too.</s>'
-                f'</speak>'
-            )
+    prompt = f"""Generate a short voice message script in {lang_name} language for a farmer.
 
-    return speech
+Context: {diagnosis_context}
+
+Rules:
+1. Write ENTIRELY in {lang_name} — no English words at all, not even crop/disease names (translate them)
+2. Gender-neutral greeting (use farmer-friend style, NOT brother/bhai/भाई)
+3. Keep under 80 words
+4. Conversational friendly tone — like a knowledgeable friend advising in the field
+5. If healthy: celebrate briefly, encourage to keep up good work
+6. If diseased: name the problem, give one key treatment action, one organic tip
+7. End by saying details are in the text message
+8. Wrap the output in SSML: start with <speak>, end with </speak>
+9. Use <s>...</s> around each sentence and <break time="300ms"/> between key sections
+10. Do NOT use <emphasis>, <prosody>, or any other SSML tags — ONLY <speak>, <s>, and <break>
+11. Return ONLY the SSML — no explanation, no commentary
+
+Example structure:
+<speak><s>Greeting!</s> <break time="300ms"/><s>Crop identification.</s> <break time="200ms"/><s>Health status or disease info.</s> <break time="400ms"/><s>Treatment advice.</s> <break time="200ms"/><s>Check text message for details.</s></speak>"""
+
+    try:
+        speech = await _invoke_bedrock_text_converse(prompt, max_tokens=500)
+        if speech:
+            # Clean up — ensure it starts with <speak> and ends with </speak>
+            speech = speech.strip()
+            if not speech.startswith("<speak>"):
+                speech = "<speak>" + speech
+            if not speech.endswith("</speak>"):
+                speech = speech + "</speak>"
+            # Remove any unsupported SSML tags that Bedrock might add
+            import re
+            speech = re.sub(r'</?(?:emphasis|prosody|voice|amazon:effect)[^>]*>', '', speech)
+            logger.info(f"Bedrock generated speech script for {lang_name}: {len(speech)} chars")
+            return speech
+    except Exception as e:
+        logger.warning(f"Bedrock speech generation failed: {e}")
+
+    # --- Fallback: simple English SSML if Bedrock fails ---
+    if is_healthy:
+        return (
+            f'<speak>'
+            f'<s>Hello farmer friend!</s> <break time="300ms"/>'
+            f'<s>Your {crop} crop looks perfectly healthy!</s> <break time="400ms"/>'
+            f'<s>No disease found. Keep up the good work!</s>'
+            f'</speak>'
+        )
+    else:
+        fallback = (
+            f'<speak>'
+            f'<s>Hello farmer friend!</s> <break time="300ms"/>'
+            f'<s>Your {crop} crop has {disease_name}.</s> <break time="200ms"/>'
+        )
+        chemicals = treatment.get("chemical", [])
+        if chemicals:
+            fallback += f'<s>Apply {chemicals[0].get("name", "")}.</s> <break time="200ms"/>'
+        fallback += (
+            f'<s>Check the text message for full details.</s>'
+            f'</speak>'
+        )
+        return fallback
 
 
 async def synthesize_speech(
@@ -266,8 +262,8 @@ async def generate_voice_advisory(
     Flow: analysis_result → format text → Polly TTS → MP3 bytes
     """
     try:
-        # Format the diagnosis into natural speech text
-        speech_text = format_diagnosis_for_speech(analysis_result, language)
+        # Format the diagnosis into natural speech text (Bedrock generates at runtime)
+        speech_text = await format_diagnosis_for_speech(analysis_result, language)
         
         # Synthesize speech
         audio_bytes = await synthesize_speech(speech_text, language)
