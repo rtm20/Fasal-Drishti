@@ -85,114 +85,126 @@ DEFAULT_VOICE = {"VoiceId": "Kajal", "LanguageCode": "en-IN", "Engine": "neural"
 
 def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> str:
     """
-    Convert the structured analysis result into natural speech text.
-    Formats it as a friendly, easy-to-understand advisory.
-    
-    Structure:
-    1. Greeting
-    2. Crop identification (always first)
-    3. If healthy → positive message, keep up good work
-    4. If diseased → detailed diagnosis + treatment advice
+    Convert the structured analysis result into a SHORT, warm, buddy-like
+    voice advisory.  This is NOT a verbatim read-out of the text message —
+    it is a concise spoken summary that sounds like a knowledgeable friend
+    giving quick advice in the field.
+
+    Design principles:
+      • Keep it under ~30 seconds of speech (~120 words)
+      • Conversational tone — like a fellow farmer or agronomist friend
+      • Lead with crop identification
+      • Healthy → quick cheer + encouragement (5-10 sec)
+      • Diseased → name the problem, one key action, one organic tip (~25 sec)
+      • Use SSML for natural pauses and prosody
     """
     analysis = analysis_result.get("analysis", {})
     treatment = analysis_result.get("treatment", {})
-    
-    crop = analysis.get("crop", "crop")
+
+    crop = analysis.get("crop", "crop").capitalize()
     crop_hindi = analysis.get("crop_hindi", "")
     disease_name = analysis.get("disease_name", "Unknown")
     hindi_name = analysis.get("hindi_name", "")
     severity = analysis.get("severity", "moderate")
-    confidence = analysis.get("confidence", 0)
     is_healthy = analysis.get("is_healthy", False)
-    description = analysis.get("description_translated", analysis.get("description", ""))
-    
-    # Hindi-belt languages (mr, gu, pa) — these farmers generally understand spoken Hindi
+
+    # Hindi-belt languages
     hindi_belt = {"hi", "mr", "gu", "pa"}
 
+    severity_hi = {"mild": "हल्की", "moderate": "मध्यम", "severe": "गंभीर", "none": "कोई नहीं"}
+    severity_en = {"mild": "mild", "moderate": "moderate", "severe": "serious", "none": "none"}
+
     if language in hindi_belt:
-        # Hindi speech for Hindi-belt languages
         crop_display = crop_hindi if crop_hindi else crop
-        
+
         if is_healthy:
             speech = (
-                f"नमस्ते किसान भाई। फसल दृष्टि का विश्लेषण पूरा हुआ। "
-                f"आपकी फसल की पहचान: {crop_display}। "
-                f"बहुत अच्छी खबर! आपकी फसल पूरी तरह स्वस्थ है। "
-                f"कोई बीमारी नहीं पाई गई। "
-                f"आप बहुत अच्छा काम कर रहे हैं — जो भी कर रहे हैं वो सही है। "
-                f"बस नियमित देखभाल और निगरानी जारी रखें। "
-                f"संतुलित खाद और सही सिंचाई बनाये रखें।"
+                f'<speak>'
+                f'<prosody rate="95%">'
+                f'नमस्ते भाई! <break time="300ms"/>'
+                f'ये तो {crop_display} की फसल है, और सुनो — '
+                f'<emphasis level="strong">बिल्कुल स्वस्थ है!</emphasis> <break time="400ms"/>'
+                f'कोई बीमारी नहीं है। बहुत बढ़िया काम कर रहे हो! <break time="200ms"/>'
+                f'ऐसे ही देखभाल करते रहो। '
+                f'</prosody>'
+                f'</speak>'
             )
         else:
+            sev_word = severity_hi.get(severity, severity)
             speech = (
-                f"नमस्ते किसान भाई। फसल दृष्टि का विश्लेषण पूरा हुआ। "
-                f"आपकी फसल की पहचान: {crop_display}। "
-                f"दुर्भाग्य से, आपकी फसल में {hindi_name or disease_name} बीमारी पाई गई है। "
-                f"गंभीरता का स्तर {severity} है। "
-                f"विश्वास स्तर {confidence} प्रतिशत है। "
+                f'<speak>'
+                f'<prosody rate="95%">'
+                f'नमस्ते भाई! <break time="300ms"/>'
+                f'ये {crop_display} की फसल है। <break time="200ms"/>'
+                f'देखो, इसमें <emphasis level="strong">{hindi_name or disease_name}</emphasis> '
+                f'की समस्या दिख रही है। <break time="200ms"/>'
+                f'स्थिति {sev_word} है, तो थोड़ा ध्यान देना ज़रूरी है। <break time="400ms"/>'
             )
-            if description:
-                speech += f"{description}। "
-            # Add first chemical treatment
+            # One key treatment — keep it short
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
                 t_name = first.get("name_translated", first.get("name", ""))
                 t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f"इलाज: {t_name} का प्रयोग करें। "
-                    f"मात्रा: {t_dosage}। "
+                    f'सबसे पहले, <emphasis level="moderate">{t_name}</emphasis> '
+                    f'लगाओ, {t_dosage}। <break time="300ms"/>'
                 )
-            # Add first organic treatment
+            # One organic tip
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
-                speech += f"जैविक उपचार: {organics[0]}। "
-            # Prevention
-            preventions = treatment.get("prevention_translated", treatment.get("prevention", []))
-            if preventions:
-                speech += f"बचाव: {preventions[0]}। "
-            
-            speech += "कृपया जल्द से जल्द उपचार शुरू करें।"
+                speech += f'और हाँ, देसी उपाय — {organics[0]}। <break time="300ms"/>'
+
+            speech += (
+                f'जितनी जल्दी हो सके शुरू कर दो भाई। '
+                f'बाक़ी पूरी जानकारी मैसेज में भेज दी है, वो पढ़ लेना। '
+                f'</prosody>'
+                f'</speak>'
+            )
     else:
-        # English speech (default for en, ta, te, kn, bn, ml, or)
+        # English speech (for en, ta, te, kn, bn, ml, or)
         if is_healthy:
             speech = (
-                f"Hello farmer. FasalDrishti analysis is complete. "
-                f"Crop identified: {crop}. "
-                f"Great news! Your crop is perfectly healthy. "
-                f"No disease was detected. "
-                f"You are doing excellent work — keep up what you are doing, it is correct. "
-                f"Continue regular monitoring and maintain your current farming practices. "
-                f"Maintain balanced fertilizer and proper irrigation."
+                f'<speak>'
+                f'<prosody rate="95%">'
+                f'Hey there! <break time="300ms"/>'
+                f'So I checked your {crop} crop, and guess what — '
+                f'<emphasis level="strong">it looks perfectly healthy!</emphasis> <break time="400ms"/>'
+                f'No disease at all. You are doing a great job! <break time="200ms"/>'
+                f'Just keep doing what you are doing. '
+                f'</prosody>'
+                f'</speak>'
             )
         else:
+            sev_word = severity_en.get(severity, severity)
             speech = (
-                f"Hello farmer. FasalDrishti analysis is complete. "
-                f"Crop identified: {crop}. "
-                f"Unfortunately, your crop has been diagnosed with {disease_name}. "
-                f"Severity level is {severity}. "
-                f"Confidence of detection is {confidence} percent. "
+                f'<speak>'
+                f'<prosody rate="95%">'
+                f'Hey! <break time="300ms"/>'
+                f'So this is your {crop} crop. <break time="200ms"/>'
+                f'I found <emphasis level="strong">{disease_name}</emphasis> here. <break time="200ms"/>'
+                f'The condition looks {sev_word}, so let us act quickly. <break time="400ms"/>'
             )
-            if description:
-                speech += f"{description}. "
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
                 t_name = first.get("name_translated", first.get("name", ""))
                 t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f"Recommended treatment: {t_name}. "
-                    f"Dosage: {t_dosage}. "
+                    f'First thing — apply <emphasis level="moderate">{t_name}</emphasis>, '
+                    f'{t_dosage}. <break time="300ms"/>'
                 )
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
-                speech += f"Organic alternative: {organics[0]}. "
-            preventions = treatment.get("prevention_translated", treatment.get("prevention", []))
-            if preventions:
-                speech += f"Prevention tip: {preventions[0]}. "
-            
-            speech += "Please start treatment as soon as possible."
-    
+                speech += f'For a natural option, try {organics[0]}. <break time="300ms"/>'
+
+            speech += (
+                f'Start as soon as you can. '
+                f'I have sent you all the details in the text message, check that out too. '
+                f'</prosody>'
+                f'</speak>'
+            )
+
     return speech
 
 
@@ -227,8 +239,12 @@ async def synthesize_speech(
 
         start_time = time.time()
         
+        # Use SSML if the text contains <speak> tags (for natural prosody)
+        text_type = "ssml" if text.strip().startswith("<speak>") else "text"
+        
         response = client.synthesize_speech(
             Text=text,
+            TextType=text_type,
             OutputFormat=output_format,
             VoiceId=voice_config["VoiceId"],
             LanguageCode=voice_config["LanguageCode"],
