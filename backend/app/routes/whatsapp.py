@@ -947,14 +947,20 @@ async def _handle_twilio_webhook(request: Request):
 
             if image_base64:
                 result = await analyze_crop_image(image_base64, media_type, user_lang, from_number)
-                response_text = await format_whatsapp_response(result, user_lang)
 
-                # Schedule background tasks (DynamoDB, CloudWatch, Polly)
-                # These run AFTER the TwiML response is returned to Twilio
+                # Schedule ALL post-processing in background to avoid Twilio's 15-second
+                # webhook timeout. format_whatsapp_response() makes many sequential
+                # Bedrock translation calls for non-English which can exceed the timeout.
+                # Text + voice are both sent via Twilio REST API from the background task.
                 import uuid
                 scan_id = str(uuid.uuid4())[:8]
                 asyncio.get_event_loop().create_task(
                     _twilio_post_analysis_tasks(scan_id, from_number, to_number, result, user_lang)
+                )
+                # Return empty TwiML immediately — Twilio won't timeout
+                return Response(
+                    content='<?xml version="1.0" encoding="UTF-8"?><Response/>',
+                    media_type="application/xml",
                 )
 
             else:
@@ -1049,9 +1055,17 @@ async def _twilio_post_analysis_tasks(
 ):
     """
     Run after the TwiML response is already sent to Twilio.
-    Saves to DynamoDB, publishes CloudWatch metrics, generates Polly voice
-    and sends it as a follow-up Twilio message.
+    Formats the multilingual text analysis, saves to DynamoDB, publishes
+    CloudWatch metrics, generates Polly voice — all sent via Twilio REST API.
     """
+    # --- Send formatted text analysis response ---
+    try:
+        response_text = await format_whatsapp_response(result, user_lang)
+        await send_twilio_message(from_number, response_text)
+        logger.info(f"Background: text response sent to {from_number}")
+    except Exception as txt_err:
+        logger.error(f"Background text response failed: {txt_err}")
+
     # --- DynamoDB save ---
     try:
         from datetime import datetime, timezone
