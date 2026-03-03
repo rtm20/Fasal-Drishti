@@ -207,6 +207,9 @@ I help you identify crop diseases instantly.
 I18N = {
     "en": {
         "result_header": "🌱 *FasalDrishti Analysis Result*",
+        "crop_identified": "🌾 *Crop Identified:*",
+        "status": "📋 *Status:*",
+        "healthy_msg": "✅ Your crop looks *healthy*! No disease detected. Keep up the good work — whatever you are doing is correct. Continue regular monitoring and maintain your current practices.",
         "disease": "🔍 *Disease:*",
         "severity": "*Severity:*",
         "confidence": "📊 *Confidence:*",
@@ -255,6 +258,9 @@ Or type *lang* to change language.""",
     },
     "hi": {
         "result_header": "🌱 *FasalDrishti विश्लेषण परिणाम*",
+        "crop_identified": "🌾 *फसल पहचान:*",
+        "status": "📋 *स्थिति:*",
+        "healthy_msg": "✅ आपकी फसल *स्वस्थ* दिख रही है! कोई बीमारी नहीं पाई गई। बहुत अच्छा काम कर रहे हैं — जो भी कर रहे हैं वो सही है। नियमित देखभाल जारी रखें।",
         "disease": "🔍 *बीमारी:*",
         "severity": "*गंभीरता:*",
         "confidence": "📊 *विश्वास स्तर:*",
@@ -303,6 +309,9 @@ Or type *lang* to change language.""",
     },
     "ta": {
         "result_header": "🌱 *FasalDrishti பகுப்பாய்வு முடிவு*",
+        "crop_identified": "🌾 *பயிர் அடையாளம்:*",
+        "status": "📋 *நிலை:*",
+        "healthy_msg": "✅ உங்கள் பயிர் *ஆரோக்கியமாக* இருக்கிறது! நோய் எதுவும் கண்டறியப்படவில்லை. நல்ல வேலை — நீங்கள் செய்வது சரியானது. வழக்கமான கண்காணிப்பைத் தொடருங்கள்.",
         "disease": "🔍 *நோய்:*",
         "severity": "*தீவிரம்:*",
         "confidence": "📊 *நம்பிக்கை:*",
@@ -323,6 +332,9 @@ Or type *lang* to change language.""",
     },
     "te": {
         "result_header": "🌱 *FasalDrishti విశ్లేషణ ఫలితం*",
+        "crop_identified": "🌾 *పంట గుర్తింపు:*",
+        "status": "📋 *స్థితి:*",
+        "healthy_msg": "✅ మీ పంట *ఆరోగ్యంగా* ఉంది! ఎలాంటి వ్యాధి కనుగొనబడలేదు. మంచి పని — మీరు చేస్తున్నది సరైనది. సాధారణ పర్యవేక్షణ కొనసాగించండి.",
         "disease": "🔍 *వ్యాధి:*",
         "severity": "*తీవ్రత:*",
         "confidence": "📊 *నమ్మకం:*",
@@ -343,6 +355,9 @@ Or type *lang* to change language.""",
     },
     "kn": {
         "result_header": "🌱 *FasalDrishti ವಿಶ್ಲೇಷಣಾ ಫಲಿತಾಂಶ*",
+        "crop_identified": "🌾 *ಬೆಳೆ ಗುರುತಿಸಲಾಗಿದೆ:*",
+        "status": "📋 *ಸ್ಥಿತಿ:*",
+        "healthy_msg": "✅ ನಿಮ್ಮ ಬೆಳೆ *ಆರೋಗ್ಯಕರವಾಗಿದೆ*! ಯಾವುದೇ ರೋಗ ಕಂಡುಬಂದಿಲ್ಲ. ಉತ್ತಮ ಕೆಲಸ — ನೀವು ಮಾಡುತ್ತಿರುವುದು ಸರಿಯಾಗಿದೆ. ನಿಯಮಿತ ಮೇಲ್ವಿಚಾರಣೆ ಮುಂದುವರಿಸಿ.",
         "disease": "🔍 *ರೋಗ:*",
         "severity": "*ತೀವ್ರತೆ:*",
         "confidence": "📊 *ವಿಶ್ವಾಸ:*",
@@ -363,6 +378,9 @@ Or type *lang* to change language.""",
     },
     "bn": {
         "result_header": "🌱 *FasalDrishti বিশ্লেষণ ফলাফল*",
+        "crop_identified": "🌾 *ফসল চিহ্নিত:*",
+        "status": "📋 *অবস্থা:*",
+        "healthy_msg": "✅ আপনার ফসল *সুস্থ* দেখাচ্ছে! কোনো রোগ পাওয়া যায়নি। চমৎকার কাজ — আপনি যা করছেন তা সঠিক। নিয়মিত পর্যবেক্ষণ চালিয়ে যান।",
         "disease": "🔍 *রোগ:*",
         "severity": "*তীব্রতা:*",
         "confidence": "📊 *আত্মবিশ্বাস:*",
@@ -383,6 +401,9 @@ Or type *lang* to change language.""",
     },
     "mr": {
         "result_header": "🌱 *FasalDrishti विश्लेषण निकाल*",
+        "crop_identified": "🌾 *पीक ओळख:*",
+        "status": "📋 *स्थिती:*",
+        "healthy_msg": "✅ तुमचे पीक *निरोगी* दिसत आहे! कोणताही रोग आढळला नाही. उत्तम काम — तुम्ही जे करत आहात ते योग्य आहे. नियमित देखरेख सुरू ठेवा.",
         "disease": "🔍 *रोग:*",
         "severity": "*तीव्रता:*",
         "confidence": "📊 *आत्मविश्वास:*",
@@ -394,7 +415,7 @@ Or type *lang* to change language.""",
         "per_acre": "/एकर",
         "organic": "🌿 *सेंद्रिय पर्याय:*",
         "prevention": "🛡️ *प्रतिबंध:*",
-        "footer": "📸 आणखी एक फोटो पाठवा किंवा 'help' टाइप करा",
+        "footer": "📸 आणखी एक फोटो पाठवा किंवा 'help' टాइप करा",
         "welcome": "🌱 *FasalDrishti — AI पीक डॉक्टर!*\n\n📸 प्रभावित पान/फळाचा फोटो पाठवा.\n30 सेकंदात रोग ओळख + उपचार!\n\n🗣️ भाषा बदलण्यासाठी *lang* टाइप करा",
         "help": "🆘 *मदत*\n\n📸 फोटो पाठवा\n🗣️ भाषा बदलण्यासाठी *lang* टाइप करा",
         "fallback": "📸 पिकाचा फोटो पाठवा किंवा 'help' टाइप करा\n🗣️ भाषा बदलण्यासाठी *lang*",
@@ -403,6 +424,9 @@ Or type *lang* to change language.""",
     },
     "gu": {
         "result_header": "🌱 *FasalDrishti વિશ્લેષણ પરિણામ*",
+        "crop_identified": "🌾 *પાક ઓળખ:*",
+        "status": "📋 *સ્થિતિ:*",
+        "healthy_msg": "✅ તમારો પાક *તંદુરસ્ત* દેખાય છે! કોઈ રોગ મળ્યો નથી. સારું કામ — તમે જે કરો છો તે યોગ્ય છે. નિયમિત દેખરેખ ચાલુ રાખો.",
         "disease": "🔍 *રોગ:*",
         "severity": "*ગંભીરતા:*",
         "confidence": "📊 *વિશ્વાસ:*",
@@ -443,6 +467,9 @@ Or type *lang* to change language.""",
     },
     "ml": {
         "result_header": "🌱 *FasalDrishti വിശകലന ഫലം*",
+        "crop_identified": "🌾 *വിള ഗുരുതിരിച്ചത്:*",
+        "status": "📋 *നില:*",
+        "healthy_msg": "✅ നിങ്ങളുടെ വിള *ആരോഗ്യകരമാണ്*! രോഗം ഒന്നും കണ്ടെത്തിയില്ല. നല്ല പ്രവൃത്തി — നിങ്ങൾ ചെയ്യുന്നത് ശരിയാണ്. പതിവുള്ള നിരീക്ഷണം തുടരുക.",
         "disease": "🔍 *രോഗം:*",
         "severity": "*തീവ്രത:*",
         "confidence": "📊 *വിശ്വാസം:*",
@@ -463,6 +490,9 @@ Or type *lang* to change language.""",
     },
     "or": {
         "result_header": "🌱 *FasalDrishti ବିଶ୍ଳେଷଣ ଫଳାଫଳ*",
+        "crop_identified": "🌾 *ଫସଲ ଚିହ୍ନଟ:*",
+        "status": "📋 *ଅବସ୍ଥା:*",
+        "healthy_msg": "✅ ଆପଣଙ୍କ ଫସଲ *ସୁସ୍ଥ* ଦିଶୁଛି! କୋଣସି ରୋଗ ମିଳିଲା ନାହିଁ। ଭଲ କାମ — ଆପଣ ଯାହା କରୁଛନ୍ତି ତାହା ଠିକ୍। ନିୟମିତ ଦେଖାଶୁଣା ଜାରି ରଖନ୍ତୁ.",
         "disease": "🔍 *ରୋଗ:*",
         "severity": "*ଗମ୍ଭୀରତା:*",
         "confidence": "📊 *ବିଶ୍ୱାସ:*",
@@ -490,11 +520,56 @@ def get_i18n(lang: str) -> dict:
 
 
 def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
-    """Format analysis result as a multilingual WhatsApp message."""
+    """
+    Format analysis result as a multilingual WhatsApp message.
+    
+    Structure:
+    1. Header
+    2. Crop Identification (always shown first)  
+    3. If HEALTHY → positive message, basic care tips
+    4. If DISEASED → full detailed diagnosis + treatment
+    """
     analysis = result["analysis"]
     treatment = result["treatment"]
     t = get_i18n(lang)
+    is_healthy = analysis.get("is_healthy", False)
 
+    # --- Crop name display ---
+    crop_name = analysis.get("crop", "unknown").capitalize()
+    crop_hindi = analysis.get("crop_hindi", "")
+    if lang == "hi" and crop_hindi:
+        crop_display = f"{crop_hindi} ({crop_name})"
+    elif lang != "en" and crop_hindi:
+        crop_display = f"{crop_name} ({crop_hindi})"
+    else:
+        crop_display = crop_name
+
+    # --- Build message: Always start with header + crop identification ---
+    msg = f"""{t['result_header']}
+
+{t['crop_identified']} *{crop_display}*"""
+
+    # ============================================================
+    # HEALTHY CROP — short positive message
+    # ============================================================
+    if is_healthy:
+        msg += f"""
+
+🟢 {t['status']} *HEALTHY / स्वस्थ*
+{t['confidence']} {analysis.get('confidence', 90)}%
+
+{t['healthy_msg']}
+
+{t['prevention']}"""
+        for p in treatment.get("prevention_translated", treatment.get("prevention", []))[:3]:
+            msg += f"\n• {p}"
+
+        msg += f"\n\n---\n{t['footer']}"
+        return msg
+
+    # ============================================================
+    # DISEASED CROP — full detailed diagnosis
+    # ============================================================
     severity_emoji = {
         "none": "🟢",
         "mild": "🟡",
@@ -517,19 +592,18 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
     # Disease name: for Hindi show hindi_name, for English show disease_name, others show both
     if lang == "hi":
         disease_display = f"{analysis.get('hindi_name', analysis['disease_name'])}"
-        disease_sub = f"   _{analysis['disease_name']}_"
+        disease_sub = f"  _{analysis['disease_name']}_"
     elif lang == "en":
         disease_display = f"{analysis['disease_name']}"
-        disease_sub = f"   _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
+        disease_sub = f"  _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
     else:
         disease_display = f"{analysis['disease_name']}"
-        disease_sub = f"   _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
+        disease_sub = f"  _{analysis.get('hindi_name', '')}_" if analysis.get('hindi_name') else ""
 
-    msg = f"""{t['result_header']}
+    msg += f"""
 
 {t['disease']} {disease_display}
 {disease_sub}
-
 {emoji} {t['severity']} {analysis['severity'].upper()}
 {t['confidence']} {analysis['confidence']}%
 
@@ -544,9 +618,9 @@ def format_whatsapp_response(result: dict, lang: str = "hi") -> str:
         tr_method = tr.get("method_translated", tr.get("method", ""))
         msg += f"""
 {i}. *{tr_name}*
-   └ {t['dosage']}: {tr_dosage}
-   └ {t['method']}: {tr_method}
-   └ {t['cost']}: ₹{tr['cost_per_acre']}{t['per_acre']}"""
+  └ {t['dosage']}: {tr_dosage}
+  └ {t['method']}: {tr_method}
+  └ {t['cost']}: ₹{tr['cost_per_acre']}{t['per_acre']}"""
 
     msg += f"\n\n{t['organic']}"
     for item in treatment.get("organic_translated", treatment.get("organic", []))[:2]:

@@ -87,11 +87,18 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
     """
     Convert the structured analysis result into natural speech text.
     Formats it as a friendly, easy-to-understand advisory.
+    
+    Structure:
+    1. Greeting
+    2. Crop identification (always first)
+    3. If healthy → positive message, keep up good work
+    4. If diseased → detailed diagnosis + treatment advice
     """
     analysis = analysis_result.get("analysis", {})
     treatment = analysis_result.get("treatment", {})
     
     crop = analysis.get("crop", "crop")
+    crop_hindi = analysis.get("crop_hindi", "")
     disease_name = analysis.get("disease_name", "Unknown")
     hindi_name = analysis.get("hindi_name", "")
     severity = analysis.get("severity", "moderate")
@@ -104,20 +111,29 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
 
     if language in hindi_belt:
         # Hindi speech for Hindi-belt languages
+        crop_display = crop_hindi if crop_hindi else crop
+        
         if is_healthy:
             speech = (
                 f"नमस्ते किसान भाई। फसल दृष्टि का विश्लेषण पूरा हुआ। "
-                f"आपकी {crop} की फसल स्वस्थ है। "
-                f"कोई बीमारी नहीं पाई गई। फसल अच्छी दिख रही है। "
-                f"नियमित देखभाल जारी रखें।"
+                f"आपकी फसल की पहचान: {crop_display}। "
+                f"बहुत अच्छी खबर! आपकी फसल पूरी तरह स्वस्थ है। "
+                f"कोई बीमारी नहीं पाई गई। "
+                f"आप बहुत अच्छा काम कर रहे हैं — जो भी कर रहे हैं वो सही है। "
+                f"बस नियमित देखभाल और निगरानी जारी रखें। "
+                f"संतुलित खाद और सही सिंचाई बनाये रखें।"
             )
         else:
             speech = (
                 f"नमस्ते किसान भाई। फसल दृष्टि का विश्लेषण पूरा हुआ। "
-                f"आपकी {crop} की फसल में {hindi_name or disease_name} बीमारी पाई गई है। "
+                f"आपकी फसल की पहचान: {crop_display}। "
+                f"दुर्भाग्य से, आपकी फसल में {hindi_name or disease_name} बीमारी पाई गई है। "
                 f"गंभीरता का स्तर {severity} है। "
+                f"विश्वास स्तर {confidence} प्रतिशत है। "
             )
-            # Add first chemical treatment (use translated if available)
+            if description:
+                speech += f"{description}। "
+            # Add first chemical treatment
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
@@ -127,10 +143,14 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
                     f"इलाज: {t_name} का प्रयोग करें। "
                     f"मात्रा: {t_dosage}। "
                 )
-            # Add first organic treatment (use translated list if available)
+            # Add first organic treatment
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
                 speech += f"जैविक उपचार: {organics[0]}। "
+            # Prevention
+            preventions = treatment.get("prevention_translated", treatment.get("prevention", []))
+            if preventions:
+                speech += f"बचाव: {preventions[0]}। "
             
             speech += "कृपया जल्द से जल्द उपचार शुरू करें।"
     else:
@@ -138,17 +158,23 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
         if is_healthy:
             speech = (
                 f"Hello farmer. FasalDrishti analysis is complete. "
-                f"Your {crop} crop is healthy. "
-                f"No disease was detected. The crop looks good. "
-                f"Continue regular care."
+                f"Crop identified: {crop}. "
+                f"Great news! Your crop is perfectly healthy. "
+                f"No disease was detected. "
+                f"You are doing excellent work — keep up what you are doing, it is correct. "
+                f"Continue regular monitoring and maintain your current farming practices. "
+                f"Maintain balanced fertilizer and proper irrigation."
             )
         else:
             speech = (
                 f"Hello farmer. FasalDrishti analysis is complete. "
-                f"Your {crop} crop has been diagnosed with {disease_name}. "
+                f"Crop identified: {crop}. "
+                f"Unfortunately, your crop has been diagnosed with {disease_name}. "
                 f"Severity level is {severity}. "
                 f"Confidence of detection is {confidence} percent. "
             )
+            if description:
+                speech += f"{description}. "
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
@@ -161,6 +187,9 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
                 speech += f"Organic alternative: {organics[0]}. "
+            preventions = treatment.get("prevention_translated", treatment.get("prevention", []))
+            if preventions:
+                speech += f"Prevention tip: {preventions[0]}. "
             
             speech += "Please start treatment as soon as possible."
     
