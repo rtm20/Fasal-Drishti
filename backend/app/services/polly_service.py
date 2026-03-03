@@ -96,7 +96,8 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
       • Lead with crop identification
       • Healthy → quick cheer + encouragement (5-10 sec)
       • Diseased → name the problem, one key action, one organic tip (~25 sec)
-      • Use SSML for natural pauses and prosody
+      • Use SSML <break> and <s> for natural pauses (neural voices
+        do NOT support <emphasis> or <prosody>)
     """
     analysis = analysis_result.get("analysis", {})
     treatment = analysis_result.get("treatment", {})
@@ -120,45 +121,36 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
         if is_healthy:
             speech = (
                 f'<speak>'
-                f'<prosody rate="95%">'
-                f'नमस्ते भाई! <break time="300ms"/>'
-                f'ये तो {crop_display} की फसल है, और सुनो — '
-                f'<emphasis level="strong">बिल्कुल स्वस्थ है!</emphasis> <break time="400ms"/>'
-                f'कोई बीमारी नहीं है। बहुत बढ़िया काम कर रहे हो! <break time="200ms"/>'
-                f'ऐसे ही देखभाल करते रहो। '
-                f'</prosody>'
+                f'<s>नमस्ते भाई!</s> <break time="300ms"/>'
+                f'<s>ये तो {crop_display} की फसल है, और सुनो, बिल्कुल स्वस्थ है!</s> <break time="400ms"/>'
+                f'<s>कोई बीमारी नहीं है।</s> <break time="200ms"/>'
+                f'<s>बहुत बढ़िया काम कर रहे हो! ऐसे ही देखभाल करते रहो।</s>'
                 f'</speak>'
             )
         else:
             sev_word = severity_hi.get(severity, severity)
             speech = (
                 f'<speak>'
-                f'<prosody rate="95%">'
-                f'नमस्ते भाई! <break time="300ms"/>'
-                f'ये {crop_display} की फसल है। <break time="200ms"/>'
-                f'देखो, इसमें <emphasis level="strong">{hindi_name or disease_name}</emphasis> '
-                f'की समस्या दिख रही है। <break time="200ms"/>'
-                f'स्थिति {sev_word} है, तो थोड़ा ध्यान देना ज़रूरी है। <break time="400ms"/>'
+                f'<s>नमस्ते भाई!</s> <break time="300ms"/>'
+                f'<s>ये {crop_display} की फसल है।</s> <break time="200ms"/>'
+                f'<s>देखो, इसमें {hindi_name or disease_name} की समस्या दिख रही है।</s> <break time="200ms"/>'
+                f'<s>स्थिति {sev_word} है, तो थोड़ा ध्यान देना ज़रूरी है।</s> <break time="400ms"/>'
             )
-            # One key treatment — keep it short
             chemicals = treatment.get("chemical", [])
             if chemicals:
                 first = chemicals[0]
                 t_name = first.get("name_translated", first.get("name", ""))
                 t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f'सबसे पहले, <emphasis level="moderate">{t_name}</emphasis> '
-                    f'लगाओ, {t_dosage}। <break time="300ms"/>'
+                    f'<s>सबसे पहले, {t_name} लगाओ, {t_dosage}।</s> <break time="300ms"/>'
                 )
-            # One organic tip
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
-                speech += f'और हाँ, देसी उपाय — {organics[0]}। <break time="300ms"/>'
+                speech += f'<s>और हाँ, देसी उपाय, {organics[0]}।</s> <break time="300ms"/>'
 
             speech += (
-                f'जितनी जल्दी हो सके शुरू कर दो भाई। '
-                f'बाक़ी पूरी जानकारी मैसेज में भेज दी है, वो पढ़ लेना। '
-                f'</prosody>'
+                f'<s>जितनी जल्दी हो सके शुरू कर दो भाई।</s> <break time="200ms"/>'
+                f'<s>बाक़ी पूरी जानकारी मैसेज में भेज दी है, वो पढ़ लेना।</s>'
                 f'</speak>'
             )
     else:
@@ -166,24 +158,20 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
         if is_healthy:
             speech = (
                 f'<speak>'
-                f'<prosody rate="95%">'
-                f'Hey there! <break time="300ms"/>'
-                f'So I checked your {crop} crop, and guess what — '
-                f'<emphasis level="strong">it looks perfectly healthy!</emphasis> <break time="400ms"/>'
-                f'No disease at all. You are doing a great job! <break time="200ms"/>'
-                f'Just keep doing what you are doing. '
-                f'</prosody>'
+                f'<s>Hey there!</s> <break time="300ms"/>'
+                f'<s>So I checked your {crop} crop, and guess what, it looks perfectly healthy!</s> <break time="400ms"/>'
+                f'<s>No disease at all.</s> <break time="200ms"/>'
+                f'<s>You are doing a great job! Just keep doing what you are doing.</s>'
                 f'</speak>'
             )
         else:
             sev_word = severity_en.get(severity, severity)
             speech = (
                 f'<speak>'
-                f'<prosody rate="95%">'
-                f'Hey! <break time="300ms"/>'
-                f'So this is your {crop} crop. <break time="200ms"/>'
-                f'I found <emphasis level="strong">{disease_name}</emphasis> here. <break time="200ms"/>'
-                f'The condition looks {sev_word}, so let us act quickly. <break time="400ms"/>'
+                f'<s>Hey!</s> <break time="300ms"/>'
+                f'<s>So this is your {crop} crop.</s> <break time="200ms"/>'
+                f'<s>I found {disease_name} here.</s> <break time="200ms"/>'
+                f'<s>The condition looks {sev_word}, so let us act quickly.</s> <break time="400ms"/>'
             )
             chemicals = treatment.get("chemical", [])
             if chemicals:
@@ -191,17 +179,15 @@ def format_diagnosis_for_speech(analysis_result: dict, language: str = "hi") -> 
                 t_name = first.get("name_translated", first.get("name", ""))
                 t_dosage = first.get("dosage_translated", first.get("dosage", ""))
                 speech += (
-                    f'First thing — apply <emphasis level="moderate">{t_name}</emphasis>, '
-                    f'{t_dosage}. <break time="300ms"/>'
+                    f'<s>First thing, apply {t_name}, {t_dosage}.</s> <break time="300ms"/>'
                 )
             organics = treatment.get("organic_translated", treatment.get("organic", []))
             if organics:
-                speech += f'For a natural option, try {organics[0]}. <break time="300ms"/>'
+                speech += f'<s>For a natural option, try {organics[0]}.</s> <break time="300ms"/>'
 
             speech += (
-                f'Start as soon as you can. '
-                f'I have sent you all the details in the text message, check that out too. '
-                f'</prosody>'
+                f'<s>Start as soon as you can.</s> <break time="200ms"/>'
+                f'<s>I have sent you all the details in the text message, check that out too.</s>'
                 f'</speak>'
             )
 
