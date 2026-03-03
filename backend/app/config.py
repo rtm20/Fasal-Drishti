@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
 
-    # Bedrock
-    bedrock_model_id: str = "global.anthropic.claude-sonnet-4-6"
+    # Bedrock (Nova Lite supports vision; bypasses Marketplace billing issues)
+    bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    bedrock_region: str = "us-east-1"
     aws_bearer_token_bedrock: str = ""
 
     # S3

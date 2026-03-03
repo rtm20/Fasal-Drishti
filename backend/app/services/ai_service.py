@@ -79,9 +79,9 @@ def _get_aws_client(service: str):
             # Short timeouts for Bedrock to avoid blocking WhatsApp webhook
             if service == "bedrock-runtime":
                 svc_config = Config(
-                    connect_timeout=5,
-                    read_timeout=10,
-                    retries={"max_attempts": 0},
+                    connect_timeout=10,
+                    read_timeout=60,
+                    retries={"max_attempts": 1},
                 )
             else:
                 svc_config = Config(
@@ -235,14 +235,13 @@ IMPORTANT: Respond ONLY with valid JSON. No markdown, no code blocks, no explana
 """
 
 
-async def _invoke_bedrock_bearer_token(request_body: dict) -> Optional[dict]:
+async def _invoke_bedrock_bearer_converse(image_base64: str, img_format: str, prompt: str) -> Optional[dict]:
     """
-    Call Bedrock using the API Key (Bearer Token) instead of IAM SigV4.
-    This bypasses INVALID_PAYMENT_INSTRUMENT issues from Marketplace.
+    Call Bedrock Converse API using ABSK API Key (Bearer Token).
+    Uses us-east-1 endpoint with Amazon Nova Lite for vision analysis.
     
-    Uses HTTP POST to:
-      https://bedrock-runtime.{region}.amazonaws.com/model/{model}/invoke
-    with header: Authorization: Bearer {api-key}
+    Endpoint: POST https://bedrock-runtime.{region}.amazonaws.com/model/{model}/converse
+    Auth:     Authorization: Bearer {ABSK-key}
     """
     bearer_token = settings.aws_bearer_token_bedrock
     if not bearer_token:
@@ -250,14 +249,13 @@ async def _invoke_bedrock_bearer_token(request_body: dict) -> Optional[dict]:
 
     import urllib.request
     import urllib.error
-
-    # Strip the "apac." cross-region prefix for the direct API endpoint
-    model_id = settings.bedrock_model_id
-    # URL-encode the model ID (it contains slashes in ARN format sometimes)
     import urllib.parse
+
+    model_id = settings.bedrock_model_id
+    region = getattr(settings, "bedrock_region", "us-east-1")
     encoded_model = urllib.parse.quote(model_id, safe="")
 
-    url = f"https://bedrock-runtime.{settings.aws_region}.amazonaws.com/model/{encoded_model}/invoke"
+    url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{encoded_model}/converse"
 
     headers = {
         "Authorization": f"Bearer {bearer_token}",
@@ -265,111 +263,115 @@ async def _invoke_bedrock_bearer_token(request_body: dict) -> Optional[dict]:
         "Accept": "application/json",
     }
 
-    body_bytes = json.dumps(request_body).encode("utf-8")
+    # Converse API body — image as base64 string (not raw bytes)
+    body = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"image": {"format": img_format, "source": {"bytes": image_base64}}},
+                    {"text": prompt},
+                ],
+            }
+        ],
+        "inferenceConfig": {"maxTokens": 1500, "temperature": 0.1},
+    }
 
+    body_bytes = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
 
     try:
         start_time = time.time()
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        with urllib.request.urlopen(req, timeout=30) as resp:
             latency_ms = int((time.time() - start_time) * 1000)
             response_body = json.loads(resp.read())
             return {"body": response_body, "latency_ms": latency_ms}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8", errors="replace")
-        logger.error(f"Bedrock Bearer Token API error {e.code}: {error_body[:500]}")
+        logger.error(f"Bedrock Bearer Converse API error {e.code}: {error_body[:500]}")
         return None
     except Exception as e:
-        logger.error(f"Bedrock Bearer Token request failed: {e}")
+        logger.error(f"Bedrock Bearer Converse request failed: {e}")
         return None
 
 
 async def analyze_image_with_bedrock(image_base64: str, media_type: str = "image/jpeg") -> Optional[dict]:
     """
-    Send image to Amazon Bedrock Claude 3 Sonnet for comprehensive crop disease analysis.
-    Uses vision capabilities for multi-stage identification:
-      crop type → health status → disease diagnosis → severity rating
+    Send image to Amazon Bedrock for comprehensive crop disease analysis.
+    Uses the Converse API (model-agnostic, works with Amazon Nova and Anthropic Claude).
     
     Auth strategy:
-      1. Try standard IAM SigV4 (boto3 invoke_model)
-      2. If IAM fails (e.g. INVALID_PAYMENT_INSTRUMENT) → try Bearer Token API Key
+      1. Try Bearer Token (ABSK API Key) → Converse API on us-east-1
+      2. If Bearer fails → Try IAM SigV4 via boto3 Converse API
     """
-
-    # Build the multimodal request (shared by both auth methods)
-    request_body = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1500,
-        "temperature": 0.1,  # Low temperature for consistent agricultural analysis
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": CROP_ANALYSIS_PROMPT,
-                    },
-                ],
-            }
-        ],
-    }
 
     # --- Circuit Breaker Check ---
     if _bedrock_circuit_is_open():
         logger.info("Bedrock circuit breaker is OPEN — skipping Bedrock entirely")
         return None
 
+    # Determine image format from media_type
+    fmt_map = {"image/jpeg": "jpeg", "image/png": "png", "image/gif": "gif", "image/webp": "webp"}
+    img_format = fmt_map.get(media_type, "jpeg")
+
     response_body = None
     latency_ms = 0
-    auth_method = "iam"
+    auth_method = "unknown"
 
-    # --- Method 1: Standard IAM SigV4 via boto3 ---
-    try:
-        client = get_bedrock_client()
-        if client:
-            start_time = time.time()
-            response = client.invoke_model(
-                modelId=settings.bedrock_model_id,
-                body=json.dumps(request_body),
-                contentType="application/json",
-                accept="application/json",
-            )
-            latency_ms = int((time.time() - start_time) * 1000)
-            response_body = json.loads(response["body"].read())
-            auth_method = "iam"
-            logger.info(f"Bedrock IAM auth succeeded in {latency_ms}ms")
-            _bedrock_circuit_record_success()
-    except Exception as iam_err:
-        logger.warning(f"Bedrock IAM auth failed: {iam_err}")
-        response_body = None
-
-    # --- Method 2: Bearer Token API Key (fallback) ---
-    if response_body is None and settings.aws_bearer_token_bedrock:
-        logger.info("Trying Bedrock Bearer Token auth...")
-        bearer_result = await _invoke_bedrock_bearer_token(request_body)
+    # --- Method 1 (primary): Bearer Token ABSK Key → Converse API ---
+    if settings.aws_bearer_token_bedrock:
+        logger.info("Trying Bedrock Bearer Token (ABSK) Converse API...")
+        bearer_result = await _invoke_bedrock_bearer_converse(
+            image_base64=image_base64,
+            img_format=img_format,
+            prompt=CROP_ANALYSIS_PROMPT,
+        )
         if bearer_result:
             response_body = bearer_result["body"]
             latency_ms = bearer_result["latency_ms"]
-            auth_method = "bearer_token"
-            logger.info(f"Bedrock Bearer Token auth succeeded in {latency_ms}ms")
+            auth_method = "bearer_converse"
+            logger.info(f"Bedrock Bearer Converse succeeded in {latency_ms}ms")
             _bedrock_circuit_record_success()
+
+    # --- Method 2 (fallback): IAM SigV4 via boto3 Converse API ---
+    if response_body is None:
+        try:
+            client = get_bedrock_client()
+            if client:
+                image_bytes = base64.b64decode(image_base64)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"image": {"format": img_format, "source": {"bytes": image_bytes}}},
+                            {"text": CROP_ANALYSIS_PROMPT},
+                        ],
+                    }
+                ]
+                start_time = time.time()
+                response = client.converse(
+                    modelId=settings.bedrock_model_id,
+                    messages=messages,
+                    inferenceConfig={"maxTokens": 1500, "temperature": 0.1},
+                )
+                latency_ms = int((time.time() - start_time) * 1000)
+                response_body = response
+                auth_method = "iam_converse"
+                logger.info(f"Bedrock IAM Converse succeeded in {latency_ms}ms")
+                _bedrock_circuit_record_success()
+        except Exception as err:
+            logger.warning(f"Bedrock IAM Converse failed: {err}")
 
     if response_body is None:
         _bedrock_circuit_record_failure()
-        logger.error("Bedrock analysis failed with both IAM and Bearer Token")
+        logger.error("Bedrock analysis failed with both Bearer and IAM")
         return None
 
     try:
-        result_text = response_body["content"][0]["text"]
-        input_tokens = response_body.get("usage", {}).get("input_tokens", 0)
-        output_tokens = response_body.get("usage", {}).get("output_tokens", 0)
+        # Converse API response format (same for both Bearer HTTP and boto3)
+        result_text = response_body["output"]["message"]["content"][0]["text"]
+        input_tokens = response_body.get("usage", {}).get("inputTokens", 0)
+        output_tokens = response_body.get("usage", {}).get("outputTokens", 0)
 
         logger.info(
             f"Bedrock response: {latency_ms}ms, tokens={input_tokens}+{output_tokens}, auth={auth_method}"
